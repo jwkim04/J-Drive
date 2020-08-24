@@ -30,3 +30,7 @@
 *.exe
 *.out
 *.app
+
+.settings
+J-Drive Debug.launch
+
