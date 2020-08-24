@@ -12,6 +12,7 @@ void SetOnBoardLED(uint32_t duty);
 
 void StartControlTimer();
 void StartInverterPWM();
+void SetInverterPWMDuty(uint32_t aDuty, uint32_t bDuty, uint32_t cDuty);
 
 void StartADC();
 uint16_t GetSO1();
@@ -22,5 +23,6 @@ uint16_t GetFETTempRaw();
 
 void OnGateDriver();
 void OffGateDriver();
+uint8_t GateFault();
 
 #endif

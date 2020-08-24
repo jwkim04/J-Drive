@@ -1,4 +1,5 @@
 #include <Lowlevel/lowlevel.hpp>
+#include <FastMath/fast_math.hpp>
 
 uint16_t SO1 = 0;
 uint16_t SO2 = 0;
@@ -22,7 +23,6 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
 
 		SO1 = HAL_ADC_GetValue(&hadc1);
 		SO2 = HAL_ADC_GetValue(&hadc2);
-
 
 
 		ADC3Raw[adcIdx++] = HAL_ADC_GetValue(&hadc3);
@@ -61,6 +61,13 @@ void StartInverterPWM()
 	HAL_TIMEx_PWMN_Start(&htim1, TIM_CHANNEL_1);
 	HAL_TIMEx_PWMN_Start(&htim1, TIM_CHANNEL_2);
 	HAL_TIMEx_PWMN_Start(&htim1, TIM_CHANNEL_3);
+}
+
+void SetInverterPWMDuty(uint32_t aDuty, uint32_t bDuty, uint32_t cDuty)
+{
+	TIM1->CCR1 = aDuty;
+	TIM1->CCR2 = bDuty;
+	TIM1->CCR3 = cDuty;
 }
 
 void StartADC()
@@ -104,4 +111,9 @@ void OnGateDriver()
 void OffGateDriver()
 {
 	HAL_GPIO_WritePin(EN_GATE_GPIO_Port, EN_GATE_Pin, GPIO_PIN_RESET);
+}
+
+uint8_t GateFault()
+{
+	return !HAL_GPIO_ReadPin(nFAULT_GPIO_Port, nFAULT_Pin);
 }
