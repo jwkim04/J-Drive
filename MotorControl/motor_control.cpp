@@ -1,9 +1,37 @@
 #include <MotorControl/motor_control.hpp>
 #include <BoardConfig/board_config.h>
 
+float theta = 0.0f;
+
+float a, b, c;
+
+float d = 0.05f;
+float q = 0.0f;
+
+uint16_t aPWM, bPWM, cPWM;
+
+float adc1, adc2;
+
 void MotorControl::ControlUpdate()
 {
+	adc1 = (float) ((int32_t) GetSO1() - 0x7FF);
+	adc2 = (float) ((int32_t) GetSO2() - 0x7FF);
 
+	DQZTransInv(d, q, theta, &a, &b, &c);
+
+	a = a + .5f;
+	b = b + .5f;
+	c = c + .5f;
+
+	aPWM = (uint16_t) (a * ((float) (0xFFF)));
+	bPWM = (uint16_t) (b * ((float) (0xFFF)));
+	cPWM = (uint16_t) (c * ((float) (0xFFF)));
+
+	SetInverterPWMDuty(aPWM, bPWM, cPWM);
+
+	theta += 0.002f;
+	if (theta > 2 * M_PI)
+		theta = 0.0f;
 }
 
 void MotorControl::DQZTrans(float a, float b, float c, float theta, float *d, float *q)

@@ -55,7 +55,7 @@ void JDriveMain()
 	Delaymillis(500);
 	SetOnBoardLED(0x0);
 
-	OffGateDriver();
+	OnGateDriver();
 	StartInverterPWM();
 	ControlStart();
 
