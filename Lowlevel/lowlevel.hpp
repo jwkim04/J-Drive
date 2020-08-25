@@ -10,9 +10,12 @@
 void StartOnBoardLED();
 void SetOnBoardLED(uint32_t duty);
 
+void SetControlFunc(void (*funcPtr)());
 void StartControlTimer();
 void StartInverterPWM();
 void SetInverterPWMDuty(uint32_t aDuty, uint32_t bDuty, uint32_t cDuty);
+
+void ControlStart();
 
 void StartADC();
 uint16_t GetSO1();

@@ -6,6 +6,10 @@ uint16_t SO2 = 0;
 uint16_t ADC3Raw[3] = { 0, 0, 0 };
 uint8_t adcIdx = 0;
 
+void (*Control)();
+
+uint8_t controlStart = 0;
+
 void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
 {
 	if (htim->Instance == TIM1)
@@ -15,7 +19,6 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
 		__HAL_TIM_SET_COUNTER(&htim8, 0x0);
 		__HAL_TIM_ENABLE_IT(&htim8, TIM_IT_UPDATE);
 		__HAL_TIM_ENABLE(&htim8);
-		HAL_GPIO_TogglePin(TP0_GPIO_Port, TP0_Pin);
 	}
 	else if (htim->Instance == TIM8)
 	{
@@ -24,6 +27,10 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
 		SO1 = HAL_ADC_GetValue(&hadc1);
 		SO2 = HAL_ADC_GetValue(&hadc2);
 
+		if (controlStart)
+		{
+			Control();
+		}
 
 		ADC3Raw[adcIdx++] = HAL_ADC_GetValue(&hadc3);
 		if (adcIdx == 3)
@@ -47,6 +54,11 @@ void SetOnBoardLED(uint32_t duty)
 	htim2.Instance->CCR4 = duty;
 }
 
+void SetControlFunc(void (*funcPtr)())
+{
+	Control = funcPtr;
+}
+
 void StartControlTimer()
 {
 	HAL_TIM_Base_Start_IT(&htim1);
@@ -68,6 +80,11 @@ void SetInverterPWMDuty(uint32_t aDuty, uint32_t bDuty, uint32_t cDuty)
 	TIM1->CCR1 = aDuty;
 	TIM1->CCR2 = bDuty;
 	TIM1->CCR3 = cDuty;
+}
+
+void ControlStart()
+{
+	controlStart = 1;
 }
 
 void StartADC()

@@ -3,6 +3,11 @@
 #include <Util/util.hpp>
 #include <cstdint>
 #include <FastMath/fast_math.hpp>
+#include <MotorControl/motor_control.hpp>
+
+MotorControl Motor = MotorControl();
+
+void Control();
 
 void JDriveMain()
 {
@@ -23,7 +28,41 @@ void JDriveMain()
 
 	FastMathInit();
 	StartADC();
-	StartInverterPWM();
-	OffGateDriver();
+	SetControlFunc(Control);
 	StartControlTimer();
+
+	for (uint8_t i = 0; i < 100; i++)
+	{
+		Delaymillis(1);
+		Motor.supplyVoltage += GetDCVoltageRaw() * DC_VOLTAGE_COEFF;
+	}
+	Motor.supplyVoltage /= 100.0f;
+
+	if (Motor.supplyVoltage >= OVERVOLTAGE_PROTECTION || Motor.supplyVoltage <= UNDERVOLTAGE_PROTECTION)
+	{
+		//Supply voltage error
+		while (1)
+		{
+			SetOnBoardLED(0xFFF);
+			Delaymillis(100);
+			SetOnBoardLED(0x0);
+			Delaymillis(100);
+		}
+	}
+
+	//Startup success
+	SetOnBoardLED(0xFFF);
+	Delaymillis(500);
+	SetOnBoardLED(0x0);
+
+	OffGateDriver();
+	StartInverterPWM();
+	ControlStart();
+
+	while(1);
+}
+
+void Control()
+{
+	Motor.ControlUpdate();
 }

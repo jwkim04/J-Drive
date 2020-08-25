@@ -1,3 +1,3 @@
-foc.cpp:3:6:void FOC::FOCUpdate()	16	static
+foc.cpp:3:6:void FOC::ControlUpdate()	16	static
 foc.cpp:8:6:void FOC::DQZTrans(float, float, float, float, float*, float*)	48	static
 foc.cpp:17:6:void FOC::DQZTransInv(float, float, float, float*, float*, float*)	48	static
