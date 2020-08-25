@@ -1,3 +1,0 @@
-motor_control.cpp:15:6:void MotorControl::ControlUpdate()	16	static
-motor_control.cpp:37:6:void MotorControl::DQZTrans(float, float, float, float, float*, float*)	48	static
-motor_control.cpp:46:6:void MotorControl::DQZTransInv(float, float, float, float*, float*, float*)	48	static
