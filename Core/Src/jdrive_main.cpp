@@ -4,8 +4,12 @@
 #include <cstdint>
 #include <FastMath/fast_math.hpp>
 #include <MotorControl/motor_control.hpp>
+#include <Calibration/calibration.hpp>
 
 MotorControl Motor = MotorControl();
+Calibration calibration = Calibration();
+
+uint8_t controlStatus = STATUS_NONE;
 
 void Control();
 
@@ -55,14 +59,40 @@ void JDriveMain()
 	Delaymillis(500);
 	SetOnBoardLED(0x0);
 
+	Motor.motorParam.polePair = 7;
+	calibration.polePair = 7;
+
 	OnGateDriver();
 	StartInverterPWM();
-	ControlStart();
+	Motor.Init();
+	calibration.Init();
 
-	while(1);
+	controlStatus = STATUS_CALIBRATION;
+
+	while (1)
+	{
+	};
 }
 
 void Control()
 {
-	Motor.ControlUpdate();
+	if (controlStatus != STATUS_NONE)
+	{
+		if (controlStatus == STATUS_MOTORCONTROL)
+		{
+			Motor.ControlUpdate();
+		}
+		else if (controlStatus == STATUS_CALIBRATION)
+		{
+			calibration.CalibrationUpdate();
+
+			if(calibration.done)
+			{
+				Motor.motorParam.encoderOffset = calibration.encoderOffset;
+				Motor.Init();
+				calibration.Init();
+				controlStatus = STATUS_MOTORCONTROL;
+			}
+		}
+	}
 }

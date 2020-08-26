@@ -4,8 +4,9 @@
 #include <Lowlevel/lowlevel.hpp>
 #include <FastMath/fast_math.hpp>
 #include <cstdint>
+#include <Encoder/AS5047.hpp>
 
-enum ControlMode
+enum MotorControlMode
 {
 	VOLTAGE_CONTROL_MODE,
 	CURRENT_CONTROL_MODE,
@@ -39,10 +40,18 @@ struct PIDParam
 	float iLimit;
 };
 
+struct MotorParam
+{
+	uint32_t polePair;
+	float encoderOffset;
+	float phaseResistance;
+	float phaseInductance;
+};
+
 class MotorControl
 {
 public:
-
+	void Init();
 	void ControlUpdate();
 
 	ControlParam controlParam;
@@ -50,10 +59,13 @@ public:
 	PIDParam currentPIDParam;
 	PIDParam velocityPIDParam;
 	PIDParam positionPIDParam;
+	MotorParam motorParam;
 
 	float supplyVoltage;
 
 private:
+	AS5047 Encoder = AS5047();
+
 	void DQZTrans(float a, float b, float c, float theta, float *d, float *q);
 	void DQZTransInv(float d, float q, float theta, float *a, float *b, float *c);
 };

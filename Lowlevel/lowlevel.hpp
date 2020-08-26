@@ -5,6 +5,7 @@
 #include <cstdint>
 #include <tim.h>
 #include <adc.h>
+#include <spi.h>
 #include <main.h>
 
 void StartOnBoardLED();
@@ -14,8 +15,6 @@ void SetControlFunc(void (*funcPtr)());
 void StartControlTimer();
 void StartInverterPWM();
 void SetInverterPWMDuty(uint32_t aDuty, uint32_t bDuty, uint32_t cDuty);
-
-void ControlStart();
 
 void StartADC();
 uint16_t GetSO1();
@@ -27,5 +26,8 @@ uint16_t GetFETTempRaw();
 void OnGateDriver();
 void OffGateDriver();
 uint8_t GateFault();
+
+void SPITransmit(uint8_t *dataTx, uint32_t len);
+uint8_t* SPIReceive();
 
 #endif

@@ -6,9 +6,11 @@ uint16_t SO2 = 0;
 uint16_t ADC3Raw[3] = { 0, 0, 0 };
 uint8_t adcIdx = 0;
 
+uint8_t SPIDataRx[2];
+
 void (*Control)();
 
-uint8_t controlStart = 0;
+uint16_t bufferCount = 0;
 
 void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
 {
@@ -27,10 +29,7 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
 		SO1 = HAL_ADC_GetValue(&hadc1);
 		SO2 = HAL_ADC_GetValue(&hadc2);
 
-		if (controlStart)
-		{
-			Control();
-		}
+		Control();
 
 		ADC3Raw[adcIdx++] = HAL_ADC_GetValue(&hadc3);
 		if (adcIdx == 3)
@@ -82,11 +81,6 @@ void SetInverterPWMDuty(uint32_t aDuty, uint32_t bDuty, uint32_t cDuty)
 	TIM1->CCR3 = cDuty;
 }
 
-void ControlStart()
-{
-	controlStart = 1;
-}
-
 void StartADC()
 {
 	HAL_GPIO_WritePin(DC_CAL_GPIO_Port, DC_CAL_Pin, GPIO_PIN_RESET);
@@ -133,4 +127,16 @@ void OffGateDriver()
 uint8_t GateFault()
 {
 	return !HAL_GPIO_ReadPin(nFAULT_GPIO_Port, nFAULT_Pin);
+}
+
+void SPITransmit(uint8_t *dataTx, uint32_t len)
+{
+	HAL_GPIO_WritePin(Encoder_CS_GPIO_Port, Encoder_CS_Pin, GPIO_PIN_SET);
+	HAL_GPIO_WritePin(Encoder_CS_GPIO_Port, Encoder_CS_Pin, GPIO_PIN_RESET);
+	HAL_SPI_TransmitReceive_IT(&hspi2, dataTx, SPIDataRx, len);
+}
+
+uint8_t* SPIReceive()
+{
+	return SPIDataRx;
 }
