@@ -12,6 +12,8 @@ void (*Control)();
 
 uint16_t bufferCount = 0;
 
+uint8_t phaseOrder = 0;
+
 void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
 {
 	if (htim->Instance == TIM1)
@@ -76,9 +78,18 @@ void StartInverterPWM()
 
 void SetInverterPWMDuty(uint32_t aDuty, uint32_t bDuty, uint32_t cDuty)
 {
-	TIM1->CCR1 = aDuty;
-	TIM1->CCR2 = bDuty;
-	TIM1->CCR3 = cDuty;
+	if (phaseOrder)
+	{
+		TIM1->CCR1 = aDuty;
+		TIM1->CCR2 = bDuty;
+		TIM1->CCR3 = cDuty;
+	}
+	else
+	{
+		TIM1->CCR1 = cDuty;
+		TIM1->CCR2 = bDuty;
+		TIM1->CCR3 = aDuty;
+	}
 }
 
 void StartADC()
@@ -127,6 +138,18 @@ void OffGateDriver()
 uint8_t GateFault()
 {
 	return !HAL_GPIO_ReadPin(nFAULT_GPIO_Port, nFAULT_Pin);
+}
+
+void SetPhaseOrder(uint8_t _phaseOrder)
+{
+	phaseOrder = _phaseOrder;
+}
+
+void SPITransmitPool(uint8_t *dataTx, uint32_t len)
+{
+	HAL_GPIO_WritePin(Encoder_CS_GPIO_Port, Encoder_CS_Pin, GPIO_PIN_SET);
+	HAL_GPIO_WritePin(Encoder_CS_GPIO_Port, Encoder_CS_Pin, GPIO_PIN_RESET);
+	HAL_SPI_TransmitReceive(&hspi2, dataTx, SPIDataRx, len, 1);
 }
 
 void SPITransmit(uint8_t *dataTx, uint32_t len)

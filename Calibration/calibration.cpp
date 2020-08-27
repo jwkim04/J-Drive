@@ -3,12 +3,8 @@
 void Calibration::Init()
 {
 	done = 0;
-	theta = 0.0f;
 	startUpCounter = 0;
-
-	Encoder.polePair = polePair;
-
-	Encoder.UpdateEncoder();
+	avgCounter = 0;
 }
 
 void Calibration::CalibrationUpdate()
@@ -17,7 +13,7 @@ void Calibration::CalibrationUpdate()
 	{
 		float a, b, c;
 
-		DQZTransInv(calibrationVoltage, 0.0f, theta, &a, &b, &c);
+		DQZTransInv(calibrationVoltage, 0.0f, 0.0f, &a, &b, &c);
 
 		a = a + 0.5f;
 		b = b + 0.5f;
@@ -28,18 +24,20 @@ void Calibration::CalibrationUpdate()
 		uint16_t cDuty = (uint16_t) (c * ((float) (0xFFF)));
 
 		SetInverterPWMDuty(aDuty, bDuty, cDuty);
-		Encoder.UpdateEncoder();
 
-		if (startUpCounter == 30000)
+		if (startUpCounter == 10000)
 		{
-			Encoder.UpdateEncoder();
+			Encoder.UpdateEncoderPool();
+			encoderOffset += Encoder.GetJointPosition();
+			avgCounter++;
 
-			done = 1;
-			encoderOffset = -(Encoder.GetRotorPosition());
-			encoderOffset = 2.5f;
-			SetInverterPWMDuty(0x0, 0x0, 0x0);
-
-			return;
+			if (avgCounter == 100)
+			{
+				done = 1;
+				encoderOffset /= 100.0f;
+				SetInverterPWMDuty(0x0, 0x0, 0x0);
+				return;
+			}
 		}
 		else
 		{

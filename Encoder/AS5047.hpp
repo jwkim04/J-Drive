@@ -9,6 +9,7 @@
 class AS5047 {
 public:
 	void UpdateEncoder();
+	void UpdateEncoderPool();
 	uint16_t GetRawData();
 	float GetJointPosition();
 	float GetRotorPosition();
@@ -16,9 +17,11 @@ public:
 	float GetJointVelocity();
 
 	uint32_t polePair;
-	float encoderOffset;
+	float encoderOffset = 0.0f;
 
 private:
+	void Update();
+
 	uint16_t encoderRawData = 0;
 
 	float jointPosition = 0.0f;

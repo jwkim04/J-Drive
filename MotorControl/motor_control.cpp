@@ -16,12 +16,14 @@ float jointPosition;
 float rotorPosition;
 float extendedJointPosition;
 
+float error = 0.0f;
+
 void MotorControl::Init()
 {
 	Encoder.encoderOffset = motorParam.encoderOffset;
 	Encoder.polePair = motorParam.polePair;
 
-	Encoder.UpdateEncoder();
+	Encoder.UpdateEncoderPool();
 }
 
 void MotorControl::ControlUpdate()
@@ -35,7 +37,8 @@ void MotorControl::ControlUpdate()
 	adc1 = (float) ((int32_t) GetSO1() - 0x7FF);
 	adc2 = (float) ((int32_t) GetSO2() - 0x7FF);
 
-	DQZTransInv(d, q, theta, &a, &b, &c);
+	error = theta - rotorPosition;
+	DQZTransInv(d, q, rotorPosition + (M_PI / 2.0f), &a, &b, &c);
 
 	a = a + 0.5f;
 	b = b + 0.5f;
@@ -47,7 +50,7 @@ void MotorControl::ControlUpdate()
 
 	SetInverterPWMDuty(aPWM, bPWM, cPWM);
 
-	theta += 0.0005f;
+	theta += 0.0001f;
 	if (theta > 2 * M_PI)
 		theta = 0.0f;
 }

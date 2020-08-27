@@ -60,7 +60,7 @@ void JDriveMain()
 	SetOnBoardLED(0x0);
 
 	Motor.motorParam.polePair = 7;
-	calibration.polePair = 7;
+	SetPhaseOrder(0);
 
 	OnGateDriver();
 	StartInverterPWM();
@@ -89,6 +89,7 @@ void Control()
 			if(calibration.done)
 			{
 				Motor.motorParam.encoderOffset = calibration.encoderOffset;
+				//Motor.motorParam.encoderOffset = 0.0f;
 				Motor.Init();
 				calibration.Init();
 				controlStatus = STATUS_MOTORCONTROL;

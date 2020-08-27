@@ -16,13 +16,12 @@ public:
 	float calibrationVoltage = 0.05f;
 	uint8_t done = 0;
 	float encoderOffset = 0.0f;
-	uint32_t polePair = 1;
 
 private:
 	AS5047 Encoder = AS5047();
 
-	float theta = 0.0f;
 	uint32_t startUpCounter = 0;
+	uint32_t avgCounter = 0;
 
 	void DQZTrans(float a, float b, float c, float theta, float *d, float *q);
 	void DQZTransInv(float d, float q, float theta, float *a, float *b, float *c);

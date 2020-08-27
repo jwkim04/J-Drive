@@ -6,14 +6,31 @@ uint8_t *dataRx;
 int32_t incrementalCounter = 0;
 uint8_t EncoderAPrev = 0;
 
+void AS5047::UpdateEncoderPool()
+{
+	SPITransmitPool(dataTx, 2);
+	dataRx = SPIReceive();
+
+	SPITransmitPool(dataTx, 2);
+	dataRx = SPIReceive();
+
+	Update();
+}
+
 void AS5047::UpdateEncoder()
 {
 	SPITransmit(dataTx, 2);
 	dataRx = SPIReceive();
 
+	Update();
+}
+
+void AS5047::Update()
+{
 	encoderRawData = (((dataRx[0] & 0xFF) << 8) | (dataRx[1] & 0xFF)) & ~0xC000;
 
-	jointPosition = (float) encoderRawData * ((float) M_PI * 2.0f) / 16383.0f + encoderOffset;
+	jointPosition = (float) encoderRawData * ((float) M_PI * 2.0f) / 16383.0f;
+	jointPosition -= encoderOffset;
 
 	if (jointPosition > (float) M_PI * 2.0f)
 	{
@@ -25,7 +42,7 @@ void AS5047::UpdateEncoder()
 	}
 
 
-	float rotorPositionRaw = jointPosition * (float)polePair;
+	float rotorPositionRaw = jointPosition * (float) polePair;
 
 	while (rotorPositionRaw > (float) M_PI * 2.0f)
 	{
@@ -33,7 +50,6 @@ void AS5047::UpdateEncoder()
 	}
 
 	rotorPosition = rotorPositionRaw;
-
 
 	uint8_t EncoderA, EncoderB, ARising, AFalling;
 
@@ -84,7 +100,8 @@ void AS5047::UpdateEncoder()
 
 	EncoderAPrev = EncoderA;
 
-	extendedJointPosition = (float) incrementalCounter * (float) (M_PI * 2.0) + (float) encoderRawData * ((float) (M_PI * 2.0) / 16383.0f) + encoderOffset;
+	extendedJointPosition = (float) incrementalCounter * (float) (M_PI * 2.0) + (float) encoderRawData * ((float) (M_PI * 2.0) / 16383.0f);
+	extendedJointPosition -= encoderOffset;
 }
 
 uint16_t AS5047::GetRawData()
@@ -109,5 +126,5 @@ float AS5047::GetExtendedJointPosition()
 
 float AS5047::GetJointVelocity()
 {
-
+	return 0.0f;
 }

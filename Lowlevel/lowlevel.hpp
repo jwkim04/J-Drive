@@ -27,6 +27,9 @@ void OnGateDriver();
 void OffGateDriver();
 uint8_t GateFault();
 
+void SetPhaseOrder(uint8_t _phaseOrder);
+
+void SPITransmitPool(uint8_t *dataTx, uint32_t len);
 void SPITransmit(uint8_t *dataTx, uint32_t len);
 uint8_t* SPIReceive();
 
