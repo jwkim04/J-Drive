@@ -5,13 +5,18 @@
 #include <FastMath/fast_math.hpp>
 #include <MotorControl/motor_control.hpp>
 #include <Calibration/calibration.hpp>
+#include <stdio.h>
+#include <Protection/protection.hpp>
 
-MotorControl Motor = MotorControl();
+MotorControl motorControl = MotorControl();
 Calibration calibration = Calibration();
+Protection protection = Protection();
 
 uint8_t controlStatus = STATUS_NONE;
 
 void Control();
+
+//TODO make error controller
 
 void JDriveMain()
 {
@@ -38,13 +43,13 @@ void JDriveMain()
 	for (uint8_t i = 0; i < 100; i++)
 	{
 		Delaymillis(1);
-		Motor.supplyVoltage += GetDCVoltageRaw() * DC_VOLTAGE_COEFF;
+		motorControl.supplyVoltage += GetDCVoltageRaw() * DC_VOLTAGE_COEFF;
 	}
-	Motor.supplyVoltage /= 100.0f;
+	motorControl.supplyVoltage /= 100.0f;
+	protection.supplyVoltage = motorControl.supplyVoltage;
 
-	if (Motor.supplyVoltage >= OVERVOLTAGE_PROTECTION || Motor.supplyVoltage <= UNDERVOLTAGE_PROTECTION)
+	if (motorControl.supplyVoltage >= OVERVOLTAGE_PROTECTION || motorControl.supplyVoltage <= UNDERVOLTAGE_PROTECTION)
 	{
-		//Supply voltage error
 		while (1)
 		{
 			SetOnBoardLED(0xFFF);
@@ -54,18 +59,19 @@ void JDriveMain()
 		}
 	}
 
-	//Startup success
 	SetOnBoardLED(0xFFF);
 	Delaymillis(500);
 	SetOnBoardLED(0x0);
 
-	Motor.motorParam.polePair = 7;
+	calibration.calibrationVoltage = 0.05f;
+	motorControl.motorParam.polePair = 7;
 	SetPhaseOrder(0);
 
 	OnGateDriver();
 	StartInverterPWM();
-	Motor.Init();
+	motorControl.Init();
 	calibration.Init();
+	protection.Init();
 
 	controlStatus = STATUS_CALIBRATION;
 
@@ -78,19 +84,22 @@ void Control()
 {
 	if (controlStatus != STATUS_NONE)
 	{
+		protection.Update();
+
 		if (controlStatus == STATUS_MOTORCONTROL)
 		{
-			Motor.ControlUpdate();
+			motorControl.ControlUpdate();
 		}
 		else if (controlStatus == STATUS_CALIBRATION)
 		{
 			calibration.CalibrationUpdate();
 
-			if(calibration.done)
+			if (calibration.done)
 			{
-				Motor.motorParam.encoderOffset = calibration.encoderOffset;
-				//Motor.motorParam.encoderOffset = 0.0f;
-				Motor.Init();
+				motorControl.motorParam.encoderOffset = calibration.encoderOffset;
+				motorControl.ADC1Offset = calibration.ADC1Offset;
+				motorControl.ADC2Offset = calibration.ADC2Offset;
+				motorControl.Init();
 				calibration.Init();
 				controlStatus = STATUS_MOTORCONTROL;
 			}

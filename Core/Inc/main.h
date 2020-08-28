@@ -58,7 +58,7 @@ void Error_Handler(void);
 /* USER CODE END EFP */
 
 /* Private defines -----------------------------------------------------------*/
-#define DEADTIME_CLK 50
+#define DEADTIME_CLK 0
 #define FET_Temp_Pin GPIO_PIN_0
 #define FET_Temp_GPIO_Port GPIOC
 #define Encoder_MOSI_Pin GPIO_PIN_1

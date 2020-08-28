@@ -94,7 +94,6 @@ void SetInverterPWMDuty(uint32_t aDuty, uint32_t bDuty, uint32_t cDuty)
 
 void StartADC()
 {
-	HAL_GPIO_WritePin(DC_CAL_GPIO_Port, DC_CAL_Pin, GPIO_PIN_RESET);
 	HAL_ADC_Start(&hadc1);
 	HAL_ADC_Start(&hadc2);
 	HAL_ADC_Start(&hadc3);
@@ -138,6 +137,18 @@ void OffGateDriver()
 uint8_t GateFault()
 {
 	return !HAL_GPIO_ReadPin(nFAULT_GPIO_Port, nFAULT_Pin);
+}
+
+void ADCCalibration(uint8_t status)
+{
+	if (status)
+	{
+		HAL_GPIO_WritePin(DC_CAL_GPIO_Port, DC_CAL_Pin, GPIO_PIN_SET);
+	}
+	else
+	{
+		HAL_GPIO_WritePin(DC_CAL_GPIO_Port, DC_CAL_Pin, GPIO_PIN_RESET);
+	}
 }
 
 void SetPhaseOrder(uint8_t _phaseOrder)

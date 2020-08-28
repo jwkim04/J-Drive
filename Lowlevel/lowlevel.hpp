@@ -26,6 +26,7 @@ uint16_t GetFETTempRaw();
 void OnGateDriver();
 void OffGateDriver();
 uint8_t GateFault();
+void ADCCalibration(uint8_t status);
 
 void SetPhaseOrder(uint8_t _phaseOrder);
 

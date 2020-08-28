@@ -54,6 +54,15 @@
 /* Private function prototypes -----------------------------------------------*/
 void SystemClock_Config(void);
 /* USER CODE BEGIN PFP */
+int _write(int fd, char *str, int len)
+{
+	for(int i=0;i<len;i++)
+	{
+        //UART 1ë²ˆì— ?°?´?„° ? „?†¡
+		HAL_UART_Transmit(&huart2, (uint8_t *)&str[i], 1, 0xFFFF);
+	}
+	return len;
+}
 
 /* USER CODE END PFP */
 
@@ -100,7 +109,7 @@ int main(void)
   MX_TIM1_Init();
   MX_TIM8_Init();
   /* USER CODE BEGIN 2 */
-  HAL_GPIO_WritePin(DC_CAL_GPIO_Port, DC_CAL_Pin, GPIO_PIN_SET);
+  HAL_GPIO_WritePin(DC_CAL_GPIO_Port, DC_CAL_Pin, GPIO_PIN_RESET);
   HAL_GPIO_WritePin(EN_GATE_GPIO_Port, EN_GATE_Pin, GPIO_PIN_RESET);
 
   JDriveMain();

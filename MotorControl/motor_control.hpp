@@ -63,6 +63,13 @@ public:
 
 	float supplyVoltage;
 
+	int32_t ADC1Offset;
+	int32_t ADC2Offset;
+
+
+	float ia, ib, ic;
+	float id, iq;
+
 private:
 	AS5047 Encoder = AS5047();
 

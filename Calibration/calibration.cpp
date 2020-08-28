@@ -5,43 +5,77 @@ void Calibration::Init()
 	done = 0;
 	startUpCounter = 0;
 	avgCounter = 0;
+	EncoderCalibration = 0;
 }
 
 void Calibration::CalibrationUpdate()
 {
 	if (!done)
 	{
-		float a, b, c;
-
-		DQZTransInv(calibrationVoltage, 0.0f, 0.0f, &a, &b, &c);
-
-		a = a + 0.5f;
-		b = b + 0.5f;
-		c = c + 0.5f;
-
-		uint16_t aDuty = (uint16_t) (a * ((float) (0xFFF)));
-		uint16_t bDuty = (uint16_t) (b * ((float) (0xFFF)));
-		uint16_t cDuty = (uint16_t) (c * ((float) (0xFFF)));
-
-		SetInverterPWMDuty(aDuty, bDuty, cDuty);
-
-		if (startUpCounter == 10000)
+		if (EncoderCalibration)
 		{
-			Encoder.UpdateEncoderPool();
-			encoderOffset += Encoder.GetJointPosition();
-			avgCounter++;
+			float a, b, c;
 
-			if (avgCounter == 100)
+			DQZTransInv(calibrationVoltage, 0.0f, 0.0f, &a, &b, &c);
+
+			a = a + 0.5f;
+			b = b + 0.5f;
+			c = c + 0.5f;
+
+			uint16_t aDuty = (uint16_t) (a * ((float) (0xFFF)));
+			uint16_t bDuty = (uint16_t) (b * ((float) (0xFFF)));
+			uint16_t cDuty = (uint16_t) (c * ((float) (0xFFF)));
+
+			SetInverterPWMDuty(aDuty, bDuty, cDuty);
+
+			if (startUpCounter == 10000)
 			{
-				done = 1;
-				encoderOffset /= 100.0f;
-				SetInverterPWMDuty(0x0, 0x0, 0x0);
-				return;
+				Encoder.UpdateEncoderPool();
+				encoderOffset += Encoder.GetJointPosition();
+				avgCounter++;
+
+				if (avgCounter == 100)
+				{
+					done = 1;
+					encoderOffset /= 100.0f;
+					SetInverterPWMDuty(0x0, 0x0, 0x0);
+					return;
+				}
+			}
+			else
+			{
+				startUpCounter++;
 			}
 		}
+
 		else
 		{
-			startUpCounter++;
+			SetInverterPWMDuty(0x0, 0x0, 0x0);
+			ADCCalibration(1);
+
+			if (startUpCounter == 1000)
+			{
+				ADC1Offset += (int32_t) GetSO1();
+				ADC2Offset += (int32_t) GetSO2();
+				avgCounter++;
+
+				if (avgCounter == 100)
+				{
+					startUpCounter = 0;
+					ADC1Offset /= 100;
+					ADC2Offset /= 100;
+					EncoderCalibration = 1;
+					avgCounter = 0;
+
+					ADCCalibration(0);
+
+					return;
+				}
+			}
+			else
+			{
+				startUpCounter++;
+			}
 		}
 	}
 
