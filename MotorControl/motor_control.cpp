@@ -1,19 +1,5 @@
 #include <MotorControl/motor_control.hpp>
 #include <BoardConfig/board_config.h>
-#include <stdio.h>
-
-float theta = 0.0f;
-
-float a, b, c;
-
-float d = 0.02f;
-float q = 0.0f;
-
-uint16_t aPWM, bPWM, cPWM;
-
-float jointPosition;
-float rotorPosition;
-float extendedJointPosition;
 
 void MotorControl::Init()
 {
@@ -21,6 +7,9 @@ void MotorControl::Init()
 	Encoder.polePair = motorParam.polePair;
 
 	Encoder.UpdateEncoderPool();
+
+	filter_d.SetParam(100.0f, DELTA_T);
+	filter_q.SetParam(100.0f, DELTA_T);
 }
 
 void MotorControl::ControlUpdate()
@@ -35,22 +24,44 @@ void MotorControl::ControlUpdate()
 	ib = (float) ((int32_t) GetSO2() - ADC2Offset) * (1.0f / (float) 0x7FF);
 	ic = (-ia - ib);
 
-	DQZTrans(ic, ib, ia, theta, &id, &iq);
-	DQZTransInv(d, q, theta, &a, &b, &c);
+	DQZTrans(ia, ib, ic, rotorPosition, &id, &iq);
+	id = filter_d.Update(id);
+	iq = filter_q.Update(iq);
 
-	a = a + 0.5f;
-	b = b + 0.5f;
-	c = c + 0.5f;
 
-	aPWM = (uint16_t) (a * ((float) (0xFFF)));
-	bPWM = (uint16_t) (b * ((float) (0xFFF)));
-	cPWM = (uint16_t) (c * ((float) (0xFFF)));
+
+	currentPIDParam_d.error = 0.0f - id;
+	currentPIDParam_q.error = controlParam.goalCurrent - iq;
+
+	currentPIDParam_d.p = currentPIDParam_d.error * currentPIDParam_d.Kp;
+	currentPIDParam_q.p = currentPIDParam_q.error * currentPIDParam_q.Kp;
+
+	currentPIDParam_d.i += (currentPIDParam_d.error - currentPIDParam_d.a) * currentPIDParam_d.Ki * delta;
+	currentPIDParam_q.i += (currentPIDParam_q.error - currentPIDParam_q.a) * currentPIDParam_q.Ki * delta;
+
+	vd = currentPIDParam_d.p + currentPIDParam_d.i;
+	vq = currentPIDParam_q.p + currentPIDParam_q.i;
+
+	currentPIDParam_d.a = vd;
+	currentPIDParam_q.a = vq;
+	vd = Limiter(vd, 0.1);
+	vq = Limiter(vq, 0.1);
+	currentPIDParam_d.a = (currentPIDParam_d.a - vd) * currentPIDParam_d.Ka;
+	currentPIDParam_q.a = (currentPIDParam_q.a - vq) * currentPIDParam_q.Ka;
+
+
+
+
+	DQZTransInv(vd, vq, rotorPosition, &va, &vb, &vc);
+
+	va = va + 0.5f;
+	vb = vb + 0.5f;
+	vc = vc + 0.5f;
+	aPWM = (uint16_t) (va * ((float) (0xFFF)));
+	bPWM = (uint16_t) (vb * ((float) (0xFFF)));
+	cPWM = (uint16_t) (vc * ((float) (0xFFF)));
 
 	SetInverterPWMDuty(aPWM, bPWM, cPWM);
-
-	theta += 0.0003f;
-	if (theta > 2 * M_PI)
-		theta = 0.0f;
 }
 
 void MotorControl::DQZTrans(float a, float b, float c, float theta, float *d, float *q)

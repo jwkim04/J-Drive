@@ -8,12 +8,17 @@ void Protection::Init()
 
 void Protection::Update()
 {
-	supplyVoltage = GetDCVoltageRaw() * DC_VOLTAGE_COEFF;
+	if(controlStatus != STATUS_NONE)
+			supplyVoltage = GetDCVoltageRaw() * DC_VOLTAGE_COEFF;
 
-	if(supplyVoltage <= voltageErrorLow || supplyVoltage >= voltageErrorHigh)
+	if(supplyVoltage <= voltageErrorLow)
 	{
 		//voltage error
 		OffGateDriver();
 		controlStatus = STATUS_NONE;
+		SetOnBoardLED(0xFFF);
 	}
+
+	//TODO Add MOSFET and motor over temperature protection
+	//TODO Add gate fault Control
 }

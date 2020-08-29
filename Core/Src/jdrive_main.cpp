@@ -40,6 +40,7 @@ void JDriveMain()
 	SetControlFunc(Control);
 	StartControlTimer();
 
+	Delaymillis(1);
 	for (uint8_t i = 0; i < 100; i++)
 	{
 		Delaymillis(1);
@@ -65,7 +66,15 @@ void JDriveMain()
 
 	calibration.calibrationVoltage = 0.05f;
 	motorControl.motorParam.polePair = 7;
-	SetPhaseOrder(0);
+	SetPhaseOrder(1);
+
+	motorControl.controlParam.goalCurrent = 0.02f;
+	motorControl.currentPIDParam_d.Kp = 5.0f;
+	motorControl.currentPIDParam_q.Kp = 5.0f;
+	motorControl.currentPIDParam_d.Ki = 20.0f;
+	motorControl.currentPIDParam_q.Ki = 20.0f;
+	motorControl.currentPIDParam_d.Ka = 1.0f / motorControl.currentPIDParam_d.Kp;
+	motorControl.currentPIDParam_q.Ka = 1.0f / motorControl.currentPIDParam_q.Kp;
 
 	OnGateDriver();
 	StartInverterPWM();
@@ -77,6 +86,7 @@ void JDriveMain()
 
 	while (1)
 	{
+		printf("$ %f %f %f %f;\n", motorControl.controlParam.goalCurrent * 100, motorControl.iq * 100, motorControl.id * 100, motorControl.currentPIDParam_q.i * 100);
 	};
 }
 

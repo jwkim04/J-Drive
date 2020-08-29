@@ -5,5 +5,6 @@
 #include <cstdint>
 
 void Delaymillis(uint32_t ms);
+float Limiter(float value, float limit);
 
 #endif

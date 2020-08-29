@@ -5,6 +5,9 @@
 #include <FastMath/fast_math.hpp>
 #include <cstdint>
 #include <Encoder/AS5047.hpp>
+#include <Util/util.hpp>
+#include <BoardConfig/board_config.h>
+#include <DigitalFilter/lowpass.hpp>
 
 enum MotorControlMode
 {
@@ -33,6 +36,11 @@ struct ControlParam
 
 struct PIDParam
 {
+	float error;
+	float p;
+	float i;
+	float d;
+	float a;
 	float Kp;
 	float Ki;
 	float Kd;
@@ -54,21 +62,34 @@ public:
 	void Init();
 	void ControlUpdate();
 
+	LowPass filter_d = LowPass();
+	LowPass filter_q = LowPass();
+
 	ControlParam controlParam;
 
-	PIDParam currentPIDParam;
+	PIDParam currentPIDParam_d;
+	PIDParam currentPIDParam_q;
 	PIDParam velocityPIDParam;
 	PIDParam positionPIDParam;
 	MotorParam motorParam;
 
 	float supplyVoltage;
 
+	float delta = DELTA_T;
+
 	int32_t ADC1Offset;
 	int32_t ADC2Offset;
 
 
+	float jointPosition;
+	float rotorPosition;
+	float extendedJointPosition;
 	float ia, ib, ic;
 	float id, iq;
+	float vd;
+	float vq;
+	float va, vb, vc;
+	uint16_t aPWM, bPWM, cPWM;
 
 private:
 	AS5047 Encoder = AS5047();

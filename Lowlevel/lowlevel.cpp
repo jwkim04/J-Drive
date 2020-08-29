@@ -3,7 +3,7 @@
 
 uint16_t SO1 = 0;
 uint16_t SO2 = 0;
-uint16_t ADC3Raw[3] = { 0, 0, 0 };
+uint16_t ADC3Raw[3];
 uint8_t adcIdx = 0;
 
 uint8_t SPIDataRx[2];
@@ -28,14 +28,22 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
 	{
 		HAL_GPIO_TogglePin(TP1_GPIO_Port, TP1_Pin);
 
-		SO1 = HAL_ADC_GetValue(&hadc1);
-		SO2 = HAL_ADC_GetValue(&hadc2);
-
-		Control();
+		if (phaseOrder)
+		{
+			SO1 = HAL_ADC_GetValue(&hadc1);
+			SO2 = HAL_ADC_GetValue(&hadc2);
+		}
+		else
+		{
+			SO2 = HAL_ADC_GetValue(&hadc1);
+			SO1 = HAL_ADC_GetValue(&hadc2);
+		}
 
 		ADC3Raw[adcIdx++] = HAL_ADC_GetValue(&hadc3);
-		if (adcIdx == 3)
+		if (adcIdx >= 3)
 			adcIdx = 0;
+
+		Control();
 
 		HAL_ADC_Start(&hadc1);
 		HAL_ADC_Start(&hadc2);
@@ -86,9 +94,9 @@ void SetInverterPWMDuty(uint32_t aDuty, uint32_t bDuty, uint32_t cDuty)
 	}
 	else
 	{
-		TIM1->CCR1 = cDuty;
-		TIM1->CCR2 = bDuty;
-		TIM1->CCR3 = aDuty;
+		TIM1->CCR1 = bDuty;
+		TIM1->CCR2 = aDuty;
+		TIM1->CCR3 = cDuty;
 	}
 }
 
