@@ -41,7 +41,6 @@ void AS5047::Update()
 		jointPosition += (float) M_PI * 2.0f;
 	}
 
-
 	float rotorPositionRaw = jointPosition * (float) polePair;
 
 	while (rotorPositionRaw > (float) M_PI * 2.0f)
@@ -102,6 +101,15 @@ void AS5047::Update()
 
 	extendedJointPosition = (float) incrementalCounter * (float) (M_PI * 2.0) + (float) encoderRawData * ((float) (M_PI * 2.0) / 16383.0f);
 	extendedJointPosition -= encoderOffset;
+
+	jointVelocity = (extendedJointPosition - extendedJointPositionPrev[positionBufferIdx]) / (DELTA_T * 10.0f);
+	jointVelocity = filter.Update(jointVelocity);
+	extendedJointPositionPrev[positionBufferIdx++] = extendedJointPosition;
+
+	if (positionBufferIdx >= 10)
+	{
+		positionBufferIdx = 0;
+	}
 }
 
 uint16_t AS5047::GetRawData()
@@ -126,5 +134,5 @@ float AS5047::GetExtendedJointPosition()
 
 float AS5047::GetJointVelocity()
 {
-	return 0.0f;
+	return jointVelocity;
 }

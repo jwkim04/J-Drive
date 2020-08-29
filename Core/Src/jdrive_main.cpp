@@ -68,13 +68,23 @@ void JDriveMain()
 	motorControl.motorParam.polePair = 7;
 	SetPhaseOrder(1);
 
-	motorControl.controlParam.goalCurrent = 0.02f;
-	motorControl.currentPIDParam_d.Kp = 5.0f;
-	motorControl.currentPIDParam_q.Kp = 5.0f;
+
+	motorControl.controlMode = VELOCITY_CONTROL_MODE;
+
+	motorControl.controlParam.goalVelocity = -1.5f;
+	motorControl.velocityPIDParam.Kp = 0.005f;
+	motorControl.velocityPIDParam.Ki = 0.1f;
+	motorControl.velocityPIDParam.Ka = 1.0 / motorControl.velocityPIDParam.Kp;
+
+	motorControl.controlParam.goalCurrent = 0.2f;
+	motorControl.currentPIDParam_d.Kp = 6.0f;
+	motorControl.currentPIDParam_q.Kp = 6.0f;
 	motorControl.currentPIDParam_d.Ki = 20.0f;
 	motorControl.currentPIDParam_q.Ki = 20.0f;
 	motorControl.currentPIDParam_d.Ka = 1.0f / motorControl.currentPIDParam_d.Kp;
 	motorControl.currentPIDParam_q.Ka = 1.0f / motorControl.currentPIDParam_q.Kp;
+
+	motorControl.controlParam.goalVoltage = 0.2f;
 
 	OnGateDriver();
 	StartInverterPWM();
@@ -86,7 +96,7 @@ void JDriveMain()
 
 	while (1)
 	{
-		printf("$ %f %f %f %f;\n", motorControl.controlParam.goalCurrent * 100, motorControl.iq * 100, motorControl.id * 100, motorControl.currentPIDParam_q.i * 100);
+		printf("$ %f %f %f;\n", motorControl.controlParam.goalVelocity, motorControl.jointVelocity, motorControl.velocityPIDParam.i * 100);
 	};
 }
 
@@ -94,7 +104,7 @@ void Control()
 {
 	if (controlStatus != STATUS_NONE)
 	{
-		protection.Update();
+		//protection.Update();
 
 		if (controlStatus == STATUS_MOTORCONTROL)
 		{

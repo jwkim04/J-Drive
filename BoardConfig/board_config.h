@@ -7,9 +7,6 @@
 #define FW_VER_MAJOR 1
 #define FW_VER_MINOR 0
 
-#define SHUNT_RESISTANCE 2e-3f
-#define CURRENT_AMP_GAIN 10.0f
-
 #define ONBOARD_TEMP_COEFF 0.0f
 #define DC_VOLTAGE_COEFF 756e-5f
 

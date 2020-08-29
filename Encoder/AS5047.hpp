@@ -5,9 +5,14 @@
 
 #include <Lowlevel/lowlevel.hpp>
 #include <math.h>
+#include <BoardConfig/board_config.h>
+#include <DigitalFilter/lowpass.hpp>
 
-class AS5047 {
+class AS5047
+{
 public:
+	LowPass filter = LowPass();
+
 	void UpdateEncoder();
 	void UpdateEncoderPool();
 	uint16_t GetRawData();
@@ -24,9 +29,12 @@ private:
 
 	uint16_t encoderRawData = 0;
 
+	float jointVelocity = 0.0f;
 	float jointPosition = 0.0f;
 	float rotorPosition = 0.0f;
 	float extendedJointPosition = 0.0f;
+	float extendedJointPositionPrev[10] = { 0, };
+	uint8_t positionBufferIdx = 0;
 };
 
 #endif

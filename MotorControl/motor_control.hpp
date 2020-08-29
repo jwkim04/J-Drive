@@ -22,13 +22,10 @@ struct ControlParam
 {
 	uint8_t controlMode;
 
-	float volatgeLimit;
 	float goalVoltage;
 
-	float currentLimit;
 	float goalCurrent;
 
-	float velocityLimit;
 	float goalVelocity;
 
 	float goalPosition;
@@ -52,8 +49,6 @@ struct MotorParam
 {
 	uint32_t polePair;
 	float encoderOffset;
-	float phaseResistance;
-	float phaseInductance;
 };
 
 class MotorControl
@@ -64,6 +59,8 @@ public:
 
 	LowPass filter_d = LowPass();
 	LowPass filter_q = LowPass();
+
+	uint8_t controlMode = VOLTAGE_CONTROL_MODE;
 
 	ControlParam controlParam;
 
@@ -84,6 +81,9 @@ public:
 	float jointPosition;
 	float rotorPosition;
 	float extendedJointPosition;
+	float jointVelocity;
+
+	float currentCommand;
 	float ia, ib, ic;
 	float id, iq;
 	float vd;
@@ -93,6 +93,10 @@ public:
 
 private:
 	AS5047 Encoder = AS5047();
+
+	void VelocityControl();
+	void CurrentControl();
+	void VoltageControl();
 
 	void DQZTrans(float a, float b, float c, float theta, float *d, float *q);
 	void DQZTransInv(float d, float q, float theta, float *a, float *b, float *c);
