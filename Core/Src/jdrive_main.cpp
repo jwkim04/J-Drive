@@ -68,15 +68,24 @@ void JDriveMain()
 	motorControl.motorParam.polePair = 7;
 	SetPhaseOrder(1);
 
+	motorControl.controlMode = DAMPED_OSCILLATION_POSITION_CONTROL_MODE;
 
-	motorControl.controlMode = VELOCITY_CONTROL_MODE;
+	motorControl.controlParam.goalPosition = 0.0f;
 
-	motorControl.controlParam.goalVelocity = -1.5f;
+	motorControl.dampedOscillationParam.k = 0.01f;
+	motorControl.dampedOscillationParam.b = 0.00001f;
+	motorControl.dampedOscillationParam.m = 0.00005f;
+
+	motorControl.positionPIDParam.Kp = 0.01f;
+	motorControl.positionPIDParam.Ki = 0.00f;
+	motorControl.positionPIDParam.Ka = 0;
+
+	motorControl.controlParam.goalVelocity = 999.0f;
 	motorControl.velocityPIDParam.Kp = 0.005f;
-	motorControl.velocityPIDParam.Ki = 0.1f;
+	motorControl.velocityPIDParam.Ki = 0.01f;
 	motorControl.velocityPIDParam.Ka = 1.0 / motorControl.velocityPIDParam.Kp;
 
-	motorControl.controlParam.goalCurrent = 0.2f;
+	motorControl.controlParam.goalCurrent = 0.3f;
 	motorControl.currentPIDParam_d.Kp = 6.0f;
 	motorControl.currentPIDParam_q.Kp = 6.0f;
 	motorControl.currentPIDParam_d.Ki = 20.0f;
@@ -96,7 +105,7 @@ void JDriveMain()
 
 	while (1)
 	{
-		printf("$ %f %f %f;\n", motorControl.controlParam.goalVelocity, motorControl.jointVelocity, motorControl.velocityPIDParam.i * 100);
+		printf("$ %f %f;\n", motorControl.extendedJointPosition, motorControl.controlParam.goalPosition);
 	};
 }
 

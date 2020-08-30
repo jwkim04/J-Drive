@@ -14,8 +14,8 @@ enum MotorControlMode
 	VOLTAGE_CONTROL_MODE,
 	CURRENT_CONTROL_MODE,
 	VELOCITY_CONTROL_MODE,
-	POSITION_CONTROL_MODE
-//DAMPED_OSCILLATION_POSITION_CONTROL_MODE
+	POSITION_CONTROL_MODE,
+	DAMPED_OSCILLATION_POSITION_CONTROL_MODE
 };
 
 struct ControlParam
@@ -31,6 +31,19 @@ struct ControlParam
 	float goalPosition;
 };
 
+struct DampedOscillationParam
+{
+	float k;
+	float x;
+	float b;
+	float xdot;
+	float m;
+	float _xddotBuff[10] = {0, };
+	uint8_t _buffIdx = 0;
+	float xddot;
+	float F;
+};
+
 struct PIDParam
 {
 	float error;
@@ -42,7 +55,6 @@ struct PIDParam
 	float Ki;
 	float Kd;
 	float Ka;
-	float iLimit;
 };
 
 struct MotorParam
@@ -59,11 +71,13 @@ public:
 
 	LowPass filter_d = LowPass();
 	LowPass filter_q = LowPass();
+	LowPass filter_acceleration = LowPass();
 
 	uint8_t controlMode = VOLTAGE_CONTROL_MODE;
 
 	ControlParam controlParam;
 
+	DampedOscillationParam dampedOscillationParam;
 	PIDParam currentPIDParam_d;
 	PIDParam currentPIDParam_q;
 	PIDParam velocityPIDParam;
@@ -83,6 +97,7 @@ public:
 	float extendedJointPosition;
 	float jointVelocity;
 
+	float velocityCommand;
 	float currentCommand;
 	float ia, ib, ic;
 	float id, iq;
@@ -94,6 +109,8 @@ public:
 private:
 	AS5047 Encoder = AS5047();
 
+	void DampedOscillationPositionControl();
+	void PositionControl();
 	void VelocityControl();
 	void CurrentControl();
 	void VoltageControl();

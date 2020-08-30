@@ -11,7 +11,8 @@
 class AS5047
 {
 public:
-	LowPass filter = LowPass();
+	LowPass filter_vel = LowPass();
+	LowPass filter_pos = LowPass();
 
 	void UpdateEncoder();
 	void UpdateEncoderPool();
