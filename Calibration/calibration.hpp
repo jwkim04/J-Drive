@@ -7,6 +7,7 @@
 #include <cstdint>
 #include <Encoder/AS5047.hpp>
 #include <FastMath/fast_math.hpp>
+#include <Util/util.hpp>
 
 class Calibration {
 public:

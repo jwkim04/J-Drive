@@ -58,7 +58,6 @@ int _write(int fd, char *str, int len)
 {
 	for(int i=0;i<len;i++)
 	{
-        //UART 1ë²ˆì— ?°?´?„° ? „?†¡
 		HAL_UART_Transmit(&huart2, (uint8_t *)&str[i], 1, 0xFFFF);
 	}
 	return len;

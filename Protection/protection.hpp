@@ -15,6 +15,8 @@ public:
 	void Init();
 
 	float supplyVoltage = 0.0f;
+	uint8_t useBattery = 0;
+	float batteryCutoffVoltage = 0.0f;
 
 private:
 

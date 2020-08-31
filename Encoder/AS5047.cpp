@@ -6,7 +6,7 @@ uint8_t *dataRx;
 int32_t incrementalCounter = 0;
 uint8_t EncoderAPrev = 0;
 
-void AS5047::UpdateEncoderPool()
+void AS5047::UpdateEncoderPoll()
 {
 	SPITransmitPool(dataTx, 2);
 	dataRx = SPIReceive();
@@ -102,6 +102,7 @@ void AS5047::Update()
 	extendedJointPosition = (float) incrementalCounter * (float) (M_PI * 2.0) + (float) encoderRawData * ((float) (M_PI * 2.0) / 16383.0f);
 	extendedJointPosition -= encoderOffset;
 	extendedJointPosition = filter_pos.Update(extendedJointPosition);
+
 
 	jointVelocity = (extendedJointPosition - extendedJointPositionPrev[positionBufferIdx]) / (DELTA_T * 10.0f);
 	jointVelocity = filter_vel.Update(jointVelocity);

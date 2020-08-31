@@ -7,14 +7,19 @@
 #include <adc.h>
 #include <spi.h>
 #include <main.h>
+#include <usart.h>
 
 void StartOnBoardLED();
 void SetOnBoardLED(uint32_t duty);
 
 void SetControlFunc(void (*funcPtr)());
+void SetUartCallbackFunc(void (*funcPtr)());
+void StartUartInterrupt();
 void StartControlTimer();
 void StartInverterPWM();
 void SetInverterPWMDuty(uint32_t aDuty, uint32_t bDuty, uint32_t cDuty);
+
+uint8_t GetUartData();
 
 void StartADC();
 uint16_t GetSO1();

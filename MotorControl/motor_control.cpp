@@ -5,14 +5,14 @@ void MotorControl::Init()
 {
 	Encoder.encoderOffset = motorParam.encoderOffset;
 	Encoder.polePair = motorParam.polePair;
-	Encoder.filter_vel.SetParam(80.0f, DELTA_T);
-	Encoder.filter_pos.SetParam(100.0f, DELTA_T);
+	Encoder.filter_vel.SetParam(VELOCITY_FILTER_CUTOFF_FREQ, DELTA_T);
+	Encoder.filter_pos.SetParam(POSITION_FILTER_CUTOFF_FREQ, DELTA_T);
 
-	Encoder.UpdateEncoderPool();
+	Encoder.UpdateEncoderPoll();
 
-	filter_d.SetParam(100.0f, DELTA_T);
-	filter_q.SetParam(100.0f, DELTA_T);
-	filter_acceleration.SetParam(2.5f, DELTA_T);
+	filter_d.SetParam(CURRENT_FILTER_CUTOFF_FREQ, DELTA_T);
+	filter_q.SetParam(CURRENT_FILTER_CUTOFF_FREQ, DELTA_T);
+	filter_acceleration.SetParam(ACCEKERATION_FILTER_CUTOFF_FREQ, DELTA_T);
 }
 
 void MotorControl::ControlUpdate()
@@ -61,7 +61,7 @@ void MotorControl::DampedOscillationPositionControl()
 	dampedOscillationParam.x = controlParam.goalPosition - extendedJointPosition;
 	dampedOscillationParam.xdot = jointVelocity;
 
-	dampedOscillationParam.xddot = (dampedOscillationParam.xdot - dampedOscillationParam._xddotBuff[dampedOscillationParam._buffIdx]) / (delta * 10.0f);
+	dampedOscillationParam.xddot = (dampedOscillationParam.xdot - dampedOscillationParam._xddotBuff[dampedOscillationParam._buffIdx]) / (DELTA_T * 10.0f);
 	dampedOscillationParam.xddot = filter_acceleration.Update(dampedOscillationParam.xddot);
 	dampedOscillationParam._xddotBuff[dampedOscillationParam._buffIdx++] = dampedOscillationParam.xdot;
 	if(dampedOscillationParam._buffIdx >= 10)
@@ -82,8 +82,8 @@ void MotorControl::DampedOscillationPositionControl()
 	currentPIDParam_d.p = currentPIDParam_d.error * currentPIDParam_d.Kp;
 	currentPIDParam_q.p = currentPIDParam_q.error * currentPIDParam_q.Kp;
 
-	currentPIDParam_d.i += (currentPIDParam_d.error - currentPIDParam_d.a) * currentPIDParam_d.Ki * delta;
-	currentPIDParam_q.i += (currentPIDParam_q.error - currentPIDParam_q.a) * currentPIDParam_q.Ki * delta;
+	currentPIDParam_d.i += (currentPIDParam_d.error - currentPIDParam_d.a) * currentPIDParam_d.Ki * DELTA_T;
+	currentPIDParam_q.i += (currentPIDParam_q.error - currentPIDParam_q.a) * currentPIDParam_q.Ki * DELTA_T;
 
 	vd = currentPIDParam_d.p + currentPIDParam_d.i;
 	vq = currentPIDParam_q.p + currentPIDParam_q.i;
@@ -109,12 +109,11 @@ void MotorControl::DampedOscillationPositionControl()
 
 void MotorControl::PositionControl()
 {
-	//Position Controller
 	positionPIDParam.error = controlParam.goalPosition - extendedJointPosition;
 
 	positionPIDParam.p = positionPIDParam.error * positionPIDParam.Kp;
 
-	positionPIDParam.i += (positionPIDParam.error - positionPIDParam.a) * positionPIDParam.Ki * delta;
+	positionPIDParam.i += (positionPIDParam.error - positionPIDParam.a) * positionPIDParam.Ki * DELTA_T;
 
 	velocityCommand = positionPIDParam.p + positionPIDParam.i;
 
@@ -122,12 +121,12 @@ void MotorControl::PositionControl()
 	velocityCommand = Limiter(velocityCommand, controlParam.goalVelocity);
 	positionPIDParam.a = (positionPIDParam.a - velocityCommand) * positionPIDParam.Ka;
 
-	//Velocity Controller
+
 	velocityPIDParam.error = velocityCommand - jointVelocity;
 
 	velocityPIDParam.p = velocityPIDParam.error * velocityPIDParam.Kp;
 
-	velocityPIDParam.i += (velocityPIDParam.error - velocityPIDParam.a) * velocityPIDParam.Ki * delta;
+	velocityPIDParam.i += (velocityPIDParam.error - velocityPIDParam.a) * velocityPIDParam.Ki * DELTA_T;
 
 	currentCommand = velocityPIDParam.p + velocityPIDParam.i;
 
@@ -135,15 +134,15 @@ void MotorControl::PositionControl()
 	currentCommand = Limiter(currentCommand, controlParam.goalCurrent);
 	velocityPIDParam.a = (velocityPIDParam.a - currentCommand) * velocityPIDParam.Ka;
 
-	//Current Controller
+
 	currentPIDParam_d.error = 0.0f - id;
 	currentPIDParam_q.error = currentCommand - iq;
 
 	currentPIDParam_d.p = currentPIDParam_d.error * currentPIDParam_d.Kp;
 	currentPIDParam_q.p = currentPIDParam_q.error * currentPIDParam_q.Kp;
 
-	currentPIDParam_d.i += (currentPIDParam_d.error - currentPIDParam_d.a) * currentPIDParam_d.Ki * delta;
-	currentPIDParam_q.i += (currentPIDParam_q.error - currentPIDParam_q.a) * currentPIDParam_q.Ki * delta;
+	currentPIDParam_d.i += (currentPIDParam_d.error - currentPIDParam_d.a) * currentPIDParam_d.Ki * DELTA_T;
+	currentPIDParam_q.i += (currentPIDParam_q.error - currentPIDParam_q.a) * currentPIDParam_q.Ki * DELTA_T;
 
 	vd = currentPIDParam_d.p + currentPIDParam_d.i;
 	vq = currentPIDParam_q.p + currentPIDParam_q.i;
@@ -169,12 +168,11 @@ void MotorControl::PositionControl()
 
 void MotorControl::VelocityControl()
 {
-	//Velocity Controller
 	velocityPIDParam.error = controlParam.goalVelocity - jointVelocity;
 
 	velocityPIDParam.p = velocityPIDParam.error * velocityPIDParam.Kp;
 
-	velocityPIDParam.i += (velocityPIDParam.error - velocityPIDParam.a) * velocityPIDParam.Ki * delta;
+	velocityPIDParam.i += (velocityPIDParam.error - velocityPIDParam.a) * velocityPIDParam.Ki * DELTA_T;
 
 	currentCommand = velocityPIDParam.p + velocityPIDParam.i;
 
@@ -182,15 +180,15 @@ void MotorControl::VelocityControl()
 	currentCommand = Limiter(currentCommand, controlParam.goalCurrent);
 	velocityPIDParam.a = (velocityPIDParam.a - currentCommand) * velocityPIDParam.Ka;
 
-	//Current Controller
+
 	currentPIDParam_d.error = 0.0f - id;
 	currentPIDParam_q.error = currentCommand - iq;
 
 	currentPIDParam_d.p = currentPIDParam_d.error * currentPIDParam_d.Kp;
 	currentPIDParam_q.p = currentPIDParam_q.error * currentPIDParam_q.Kp;
 
-	currentPIDParam_d.i += (currentPIDParam_d.error - currentPIDParam_d.a) * currentPIDParam_d.Ki * delta;
-	currentPIDParam_q.i += (currentPIDParam_q.error - currentPIDParam_q.a) * currentPIDParam_q.Ki * delta;
+	currentPIDParam_d.i += (currentPIDParam_d.error - currentPIDParam_d.a) * currentPIDParam_d.Ki * DELTA_T;
+	currentPIDParam_q.i += (currentPIDParam_q.error - currentPIDParam_q.a) * currentPIDParam_q.Ki * DELTA_T;
 
 	vd = currentPIDParam_d.p + currentPIDParam_d.i;
 	vq = currentPIDParam_q.p + currentPIDParam_q.i;
@@ -216,15 +214,14 @@ void MotorControl::VelocityControl()
 
 void MotorControl::CurrentControl()
 {
-	//Current Controller
 	currentPIDParam_d.error = 0.0f - id;
 	currentPIDParam_q.error = controlParam.goalCurrent - iq;
 
 	currentPIDParam_d.p = currentPIDParam_d.error * currentPIDParam_d.Kp;
 	currentPIDParam_q.p = currentPIDParam_q.error * currentPIDParam_q.Kp;
 
-	currentPIDParam_d.i += (currentPIDParam_d.error - currentPIDParam_d.a) * currentPIDParam_d.Ki * delta;
-	currentPIDParam_q.i += (currentPIDParam_q.error - currentPIDParam_q.a) * currentPIDParam_q.Ki * delta;
+	currentPIDParam_d.i += (currentPIDParam_d.error - currentPIDParam_d.a) * currentPIDParam_d.Ki * DELTA_T;
+	currentPIDParam_q.i += (currentPIDParam_q.error - currentPIDParam_q.a) * currentPIDParam_q.Ki * DELTA_T;
 
 	vd = currentPIDParam_d.p + currentPIDParam_d.i;
 	vq = currentPIDParam_q.p + currentPIDParam_q.i;
@@ -250,7 +247,6 @@ void MotorControl::CurrentControl()
 
 void MotorControl::VoltageControl()
 {
-	//Voltage Controller
 	DQZTransInv(0.0f, controlParam.goalVoltage, rotorPosition, &va, &vb, &vc);
 
 	va = va + 0.5f;

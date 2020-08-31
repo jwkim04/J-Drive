@@ -7,14 +7,17 @@
 #include <Calibration/calibration.hpp>
 #include <stdio.h>
 #include <Protection/protection.hpp>
+#include <Protocol/protocol.hpp>
 
 MotorControl motorControl = MotorControl();
 Calibration calibration = Calibration();
 Protection protection = Protection();
+Protocol protocol = Protocol();
 
 uint8_t controlStatus = STATUS_NONE;
 
 void Control();
+void UartCallback();
 
 //TODO make error controller
 
@@ -38,7 +41,9 @@ void JDriveMain()
 	FastMathInit();
 	StartADC();
 	SetControlFunc(Control);
+	SetUartCallbackFunc(UartCallback);
 	StartControlTimer();
+	StartUartInterrupt();
 
 	Delaymillis(1);
 	for (uint8_t i = 0; i < 100; i++)
@@ -72,20 +77,20 @@ void JDriveMain()
 
 	motorControl.controlParam.goalPosition = 0.0f;
 
-	motorControl.dampedOscillationParam.k = 0.01f;
-	motorControl.dampedOscillationParam.b = 0.00001f;
-	motorControl.dampedOscillationParam.m = 0.00005f;
+	motorControl.dampedOscillationParam.k = 0.005f;
+	motorControl.dampedOscillationParam.b = 0.00f;
+	motorControl.dampedOscillationParam.m = 0.001f;
 
-	motorControl.positionPIDParam.Kp = 0.01f;
+	motorControl.positionPIDParam.Kp = 10.0f;
 	motorControl.positionPIDParam.Ki = 0.00f;
 	motorControl.positionPIDParam.Ka = 0;
 
-	motorControl.controlParam.goalVelocity = 999.0f;
+	motorControl.controlParam.goalVelocity = 40.0f;
 	motorControl.velocityPIDParam.Kp = 0.005f;
 	motorControl.velocityPIDParam.Ki = 0.01f;
 	motorControl.velocityPIDParam.Ka = 1.0 / motorControl.velocityPIDParam.Kp;
 
-	motorControl.controlParam.goalCurrent = 0.3f;
+	motorControl.controlParam.goalCurrent = 0.5;
 	motorControl.currentPIDParam_d.Kp = 6.0f;
 	motorControl.currentPIDParam_q.Kp = 6.0f;
 	motorControl.currentPIDParam_d.Ki = 20.0f;
@@ -105,7 +110,8 @@ void JDriveMain()
 
 	while (1)
 	{
-		printf("$ %f %f;\n", motorControl.extendedJointPosition, motorControl.controlParam.goalPosition);
+		//printf("$ %f %f %f;\n", motorControl.jointVelocity, motorControl.dampedOscillationParam.xddot, motorControl.extendedJointPosition);
+		//printf("$%f %f;\n", motorControl.extendedJointPosition, motorControl.jointVelocity);
 	};
 }
 
@@ -134,4 +140,9 @@ void Control()
 			}
 		}
 	}
+}
+
+void UartCallback()
+{
+	protocol.uartFIFO.push(GetUartData());
 }

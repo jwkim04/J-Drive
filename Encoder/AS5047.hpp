@@ -15,7 +15,7 @@ public:
 	LowPass filter_pos = LowPass();
 
 	void UpdateEncoder();
-	void UpdateEncoderPool();
+	void UpdateEncoderPoll();
 	uint16_t GetRawData();
 	float GetJointPosition();
 	float GetRotorPosition();

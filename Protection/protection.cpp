@@ -8,12 +8,30 @@ void Protection::Init()
 
 void Protection::Update()
 {
-	if(controlStatus != STATUS_NONE)
-			supplyVoltage = GetDCVoltageRaw() * DC_VOLTAGE_COEFF;
+	if (controlStatus != STATUS_NONE)
+		supplyVoltage = GetDCVoltageRaw() * DC_VOLTAGE_COEFF;
 
-	if(supplyVoltage <= voltageErrorLow)
+	if (useBattery == 1)
 	{
-		//voltage error
+		if (supplyVoltage <= batteryCutoffVoltage)
+		{
+			OffGateDriver();
+			controlStatus = STATUS_NONE;
+			SetOnBoardLED(0xFFF);
+		}
+	}
+	else
+	{
+		if (supplyVoltage <= voltageErrorLow || supplyVoltage >= voltageErrorHigh)
+		{
+			OffGateDriver();
+			controlStatus = STATUS_NONE;
+			SetOnBoardLED(0xFFF);
+		}
+	}
+
+	if(GateFault())
+	{
 		OffGateDriver();
 		controlStatus = STATUS_NONE;
 		SetOnBoardLED(0xFFF);

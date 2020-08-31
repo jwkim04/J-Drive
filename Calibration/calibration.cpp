@@ -16,7 +16,7 @@ void Calibration::CalibrationUpdate()
 		{
 			float a, b, c;
 
-			DQZTransInv(calibrationVoltage, 0.0f, 0.0f, &a, &b, &c);
+			DQZTransInv(Limiter(calibrationVoltage, 0.9f), 0.0f, 0.0f, &a, &b, &c);
 
 			a = a + 0.5f;
 			b = b + 0.5f;
@@ -30,7 +30,7 @@ void Calibration::CalibrationUpdate()
 
 			if (startUpCounter == 10000)
 			{
-				Encoder.UpdateEncoderPool();
+				Encoder.UpdateEncoderPoll();
 				encoderOffset += Encoder.GetJointPosition();
 				avgCounter++;
 

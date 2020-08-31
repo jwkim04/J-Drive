@@ -86,8 +86,6 @@ public:
 
 	float supplyVoltage;
 
-	float delta = DELTA_T;
-
 	int32_t ADC1Offset;
 	int32_t ADC2Offset;
 

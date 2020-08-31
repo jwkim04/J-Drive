@@ -7,8 +7,10 @@ uint16_t ADC3Raw[3];
 uint8_t adcIdx = 0;
 
 uint8_t SPIDataRx[2];
+uint8_t uartData;
 
 void (*Control)();
+void (*UartCallback)();
 
 uint16_t bufferCount = 0;
 
@@ -53,6 +55,17 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
 	}
 }
 
+void HAL_UART_RxCpltCallback(UART_HandleTypeDef* uartHandle)
+{
+	UartCallback();
+	HAL_UART_Receive_IT(&huart2, &uartData, 1);
+}
+
+void StartUartInterrupt()
+{
+	HAL_UART_Receive_IT(&huart2, &uartData, 1);
+}
+
 void StartOnBoardLED()
 {
 	HAL_TIM_PWM_Start(&htim2, TIM_CHANNEL_4);
@@ -66,6 +79,11 @@ void SetOnBoardLED(uint32_t duty)
 void SetControlFunc(void (*funcPtr)())
 {
 	Control = funcPtr;
+}
+
+void SetUartCallbackFunc(void (*funcPtr)())
+{
+	UartCallback = funcPtr;
 }
 
 void StartControlTimer()
@@ -98,6 +116,11 @@ void SetInverterPWMDuty(uint32_t aDuty, uint32_t bDuty, uint32_t cDuty)
 		TIM1->CCR2 = aDuty;
 		TIM1->CCR3 = cDuty;
 	}
+}
+
+uint8_t GetUartData()
+{
+	return uartData;
 }
 
 void StartADC()
