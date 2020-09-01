@@ -55,10 +55,21 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
 	}
 }
 
-void HAL_UART_RxCpltCallback(UART_HandleTypeDef* uartHandle)
+void HAL_UART_TxCpltCallback(UART_HandleTypeDef *huart)
+{
+	HAL_GPIO_WritePin(ControlBus_TXEN_GPIO_Port, ControlBus_TXEN_Pin, GPIO_PIN_RESET);
+}
+
+void HAL_UART_RxCpltCallback(UART_HandleTypeDef *uartHandle)
 {
 	UartCallback();
 	HAL_UART_Receive_IT(&huart2, &uartData, 1);
+}
+
+void SendPacket(uint8_t *packet, uint32_t size)
+{
+	HAL_GPIO_WritePin(ControlBus_TXEN_GPIO_Port, ControlBus_TXEN_Pin, GPIO_PIN_SET);
+	HAL_UART_Transmit_IT(&huart2, packet, size);
 }
 
 void StartUartInterrupt()
@@ -69,6 +80,16 @@ void StartUartInterrupt()
 void StartOnBoardLED()
 {
 	HAL_TIM_PWM_Start(&htim2, TIM_CHANNEL_4);
+}
+
+void ReadEEPROM(uint16_t address, uint16_t *data)
+{
+
+}
+
+void WriteEEPROM(uint16_t address, uint16_t data)
+{
+
 }
 
 void SetOnBoardLED(uint32_t duty)

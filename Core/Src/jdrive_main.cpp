@@ -8,11 +8,14 @@
 #include <stdio.h>
 #include <Protection/protection.hpp>
 #include <Protocol/protocol.hpp>
+#include <Protocol/controlTable.hpp>
 
 MotorControl motorControl = MotorControl();
 Calibration calibration = Calibration();
 Protection protection = Protection();
 Protocol protocol = Protocol();
+ControlTable controlTable = ControlTable();
+
 
 uint8_t controlStatus = STATUS_NONE;
 
@@ -38,6 +41,8 @@ void JDriveMain()
 		}
 	}
 
+	controlTable.Init();
+	controlTable.LoadTableFromEEPROM();
 	FastMathInit();
 	StartADC();
 	SetControlFunc(Control);
@@ -77,9 +82,9 @@ void JDriveMain()
 
 	motorControl.controlParam.goalPosition = 0.0f;
 
-	motorControl.dampedOscillationParam.k = 0.005f;
+	motorControl.dampedOscillationParam.k = 0.01f;
 	motorControl.dampedOscillationParam.b = 0.00f;
-	motorControl.dampedOscillationParam.m = 0.001f;
+	motorControl.dampedOscillationParam.m = 0.00f;
 
 	motorControl.positionPIDParam.Kp = 10.0f;
 	motorControl.positionPIDParam.Ki = 0.00f;
@@ -140,6 +145,8 @@ void Control()
 			}
 		}
 	}
+
+	protocol.Update();
 }
 
 void UartCallback()
