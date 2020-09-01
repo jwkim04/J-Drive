@@ -3,11 +3,13 @@
 
 #include <Protocol/fifo.hpp>
 #include <Lowlevel/lowlevel.hpp>
+#include <Protocol/controlTable.hpp>
 
 class Protocol
 {
 public:
 	FIFO uartFIFO = FIFO();
+	ControlTable controlTable = ControlTable();
 	void Update();
 
 private:

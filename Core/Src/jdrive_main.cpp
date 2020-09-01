@@ -8,14 +8,11 @@
 #include <stdio.h>
 #include <Protection/protection.hpp>
 #include <Protocol/protocol.hpp>
-#include <Protocol/controlTable.hpp>
 
 MotorControl motorControl = MotorControl();
 Calibration calibration = Calibration();
 Protection protection = Protection();
 Protocol protocol = Protocol();
-ControlTable controlTable = ControlTable();
-
 
 uint8_t controlStatus = STATUS_NONE;
 
@@ -41,8 +38,9 @@ void JDriveMain()
 		}
 	}
 
-	controlTable.Init();
-	controlTable.LoadTableFromEEPROM();
+	protocol.controlTable.Init();
+	protocol.controlTable.LoadTableFromEEPROM();
+
 	FastMathInit();
 	StartADC();
 	SetControlFunc(Control);

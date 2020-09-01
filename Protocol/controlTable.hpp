@@ -26,7 +26,7 @@ enum DataLocation
 struct ControlTableData
 {
 	uint32_t data = 0x0000;
-	uint32_t initalValue = 0x0000;
+	uint32_t initialValue = 0x0000;
 	uint8_t access = R;
 	uint8_t len = 1;
 	uint8_t type = INT;
@@ -44,7 +44,7 @@ public:
 	uint8_t GetTable(uint16_t address, uint32_t *data, uint8_t len);
 
 private:
-	void InitTable(uint16_t address, uint32_t initalValue, uint8_t access, uint8_t len, uint8_t type, uint8_t location);
+	void InitTable(uint16_t address, uint32_t initialValue, uint8_t access, uint8_t len, uint8_t type, uint8_t location);
 };
 
 #endif
