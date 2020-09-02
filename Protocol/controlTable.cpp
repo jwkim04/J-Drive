@@ -11,7 +11,7 @@ void ControlTable::Init()
 	InitTable(address++, 250, RW, 1, INT, EEPROM); //Return Delay Time
 	InitTable(address++, 0, RW, 1, INT, EEPROM); //Drive Mode
 	InitTable(address++, 0, RW, 1, INT, EEPROM); //Operating Mode
-	InitTable(address++, 0, RW, 1, INT, EEPROM); //Secondary ID
+	InitTable(address++, 255, RW, 1, INT, EEPROM); //Secondary ID
 	InitTable(address++, 0x00000000, RW, 4, FLOAT, EEPROM); //Homing Offset
 	InitTable(address++, 0x3F000000, RW, 4, FLOAT, EEPROM); //Moving Threshold
 	InitTable(address++, 0x42A00000, RW, 4, FLOAT, EEPROM); //Board Temperature Limit

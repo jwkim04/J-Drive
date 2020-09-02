@@ -66,7 +66,7 @@ void HAL_UART_RxCpltCallback(UART_HandleTypeDef *uartHandle)
 	HAL_UART_Receive_IT(&huart2, &uartData, 1);
 }
 
-void SendPacket(uint8_t *packet, uint32_t size)
+void _SendPacket(uint8_t *packet, uint32_t size)
 {
 	HAL_GPIO_WritePin(ControlBus_TXEN_GPIO_Port, ControlBus_TXEN_Pin, GPIO_PIN_SET);
 	HAL_UART_Transmit_IT(&huart2, packet, size);

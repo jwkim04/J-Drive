@@ -43,8 +43,6 @@ void Protocol::Update()
 	}
 }
 
-uint8_t pkt[4];
-
 void Protocol::ParserUpdate(uint8_t nextData)
 {
 	switch (parserStatus)
@@ -52,18 +50,189 @@ void Protocol::ParserUpdate(uint8_t nextData)
 	case 0:
 		if (HeaderParser(nextData))
 		{
-			//parserStatus++;
+			IDResult = CheckID(headerParserID);
+
+			if (IDResult == 0)
+			{
+				parserStatus = 0;
+				break;
+			}
+			else
+			{
+				InitSendPacket();
+				parserStatus++;
+			}
 		}
 		break;
 
 	case 1:
+		recvPacket[recvPacketIdx++] = nextData;
+		recvCounter++;
 
+		if (recvCounter == headerParserLength - 1)
+		{
+			uint16_t realCRC = CRC16(0, recvPacket, headerParserLength + 5);
+			uint16_t packetCRC = (uint16_t) recvPacket[headerParserLength + 5] | (((uint16_t) recvPacket[headerParserLength + 6]) << 8);
+
+			if (realCRC == packetCRC)
+			{
+				RunInstruction();
+			}
+			else
+			{
+				uint32_t ID;
+
+				controlTable.GetTable(2, &ID, 1);
+				SetPacketErrorCode(0x03);
+				SetPacketID((uint8_t) ID);
+
+				SendPacket();
+			}
+
+			parserStatus = 0;
+			break;
+		}
 		break;
 
 	default:
 		break;
 	}
+}
 
+void Protocol::RunInstruction()
+{
+	switch (headrParserInstruction)
+	{
+	case 0x01:
+		PingInstruction();
+		break;
+
+	case 0x02:
+		//Read
+		break;
+
+	case 0x03:
+		//Write
+		break;
+
+	case 0x04:
+		//Reg Write
+		break;
+
+	case 0x05:
+		//Action
+		break;
+
+	case 0x06:
+		//Factory Reset
+		break;
+
+	case 0x08:
+		//Reboot
+		break;
+
+	case 0x10:
+		//Clear
+		break;
+
+	case 0x82:
+		//Sync Read
+		break;
+
+	case 0x83:
+		//Sync Write
+		break;
+
+	case 0x92:
+		//Bulk Read
+		break;
+
+	case 0x93:
+		//Bulk Write
+		break;
+
+	default:
+		break;
+	}
+}
+
+void Protocol::PingInstruction()
+{
+	uint32_t modelNumber, FWVersion, ID;
+
+	controlTable.GetTable(0, &modelNumber, 2);
+	controlTable.GetTable(1, &FWVersion, 1);
+	controlTable.GetTable(2, &ID, 1);
+
+	AddParam((uint8_t) modelNumber);
+	AddParam((uint8_t) (modelNumber >> 8));
+	AddParam((uint8_t) FWVersion);
+
+	SetPacketErrorCode(0);
+	SetPacketID((uint8_t) ID);
+
+	SendPacket();
+}
+
+void Protocol::InitSendPacket()
+{
+	sendPacketParamIdx = 9;
+	sendPacketLenght = 4;
+}
+
+void Protocol::SetPacketID(uint8_t ID)
+{
+	sendPacket[4] = ID;
+}
+
+void Protocol::SetPacketErrorCode(uint8_t errorCode)
+{
+	sendPacket[8] = errorCode;
+}
+
+void Protocol::AddParam(uint8_t data)
+{
+	sendPacket[sendPacketParamIdx++] = data;
+	sendPacketLenght++;
+}
+
+void Protocol::SendPacket()
+{
+	sendPacket[5] = (uint8_t) sendPacketLenght;
+	sendPacket[6] = (uint8_t) (sendPacketLenght >> 8);
+
+	uint16_t packetCRC = CRC16(0, sendPacket, sendPacketLenght + 5);
+	;
+
+	sendPacket[sendPacketLenght + 5] = (uint8_t) packetCRC;
+	sendPacket[sendPacketLenght + 6] = (uint8_t) (packetCRC >> 8);
+
+	_SendPacket(sendPacket, sendPacketLenght + 7);
+}
+
+uint8_t Protocol::CheckID(uint8_t ID)
+{
+	uint32_t myID, secondaryID;
+
+	controlTable.GetTable(2, &myID, 1);
+	controlTable.GetTable(7, &secondaryID, 1);
+
+	if (ID == myID)
+	{
+		return 1;
+	}
+	else if (ID == secondaryID)
+	{
+		return 2;
+	}
+	else if (ID == 0xFE)
+	{
+		return 3;
+	}
+	else
+	{
+		return 0;
+	}
 }
 
 uint8_t Protocol::HeaderParser(uint8_t nextData)
@@ -71,6 +240,7 @@ uint8_t Protocol::HeaderParser(uint8_t nextData)
 	switch (headerParserStatus)
 	{
 	case 0:
+		recvCounter = 0;
 		recvPacketIdx = 0;
 
 		if (nextData == 0xFF)

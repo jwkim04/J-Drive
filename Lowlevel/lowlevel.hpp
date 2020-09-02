@@ -23,7 +23,7 @@ void StartEEPROM();
 void ReadEEPROM(uint16_t address, uint16_t *data);
 void WriteEEPROM(uint16_t address, uint16_t data);
 
-void SendPacket(uint8_t *packet, uint32_t size);
+void _SendPacket(uint8_t *packet, uint32_t size);
 uint8_t GetUartData();
 
 void StartADC();
