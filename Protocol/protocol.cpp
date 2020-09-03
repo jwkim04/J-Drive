@@ -35,199 +35,42 @@ uint16_t crc_table[256] = {
 		0x8213, 0x0216, 0x021C, 0x8219, 0x0208, 0x820D, 0x8207, 0x0202
 };
 
+int a = 0;
+
 void Protocol::Update()
 {
-	if (uartFIFO.size > 0)
+	int8_t result = RxPacket();
+
+	if (result == 1)
 	{
-		ParserUpdate(uartFIFO.pop());
+		rxLength = 0;
+		waitLength = 10;
+
+		RunInstruction();
+	}
+
+	else if (result == 2)
+	{
+		rxLength = 0;
+		waitLength = 10;
+	}
+
+	else if (result == -1)
+	{
+		//SetOnBoardLED(0xFFF);
 	}
 }
 
-void Protocol::ParserUpdate(uint8_t nextData)
+int8_t Protocol::CheckID(uint8_t packetID)
 {
-	switch (parserStatus)
-	{
-	case 0:
-		if (HeaderParser(nextData))
-		{
-			IDResult = CheckID(headerParserID);
+	uint32_t ID, SecondaryID;
 
-			if (IDResult == 0)
-			{
-				parserStatus = 0;
-				break;
-			}
-			else
-			{
-				InitSendPacket();
-				parserStatus++;
-			}
-		}
-		break;
-
-	case 1:
-		recvPacket[recvPacketIdx++] = nextData;
-		recvCounter++;
-
-		if (recvCounter == headerParserLength - 1)
-		{
-			uint16_t realCRC = CRC16(0, recvPacket, headerParserLength + 5);
-			uint16_t packetCRC = (uint16_t) recvPacket[headerParserLength + 5] | (((uint16_t) recvPacket[headerParserLength + 6]) << 8);
-
-			if (realCRC == packetCRC)
-			{
-				RunInstruction();
-			}
-			else
-			{
-				uint32_t ID;
-
-				controlTable.GetTable(2, &ID, 1);
-				SetPacketErrorCode(0x03);
-				SetPacketID((uint8_t) ID);
-
-				SendPacket();
-			}
-
-			parserStatus = 0;
-			break;
-		}
-		break;
-
-	default:
-		break;
-	}
-}
-
-void Protocol::RunInstruction()
-{
-	switch (headrParserInstruction)
-	{
-	case 0x01:
-		PingInstruction();
-		break;
-
-	case 0x02:
-		//Read
-		break;
-
-	case 0x03:
-		//Write
-		break;
-
-	case 0x04:
-		//Reg Write
-		break;
-
-	case 0x05:
-		//Action
-		break;
-
-	case 0x06:
-		//Factory Reset
-		break;
-
-	case 0x08:
-		//Reboot
-		break;
-
-	case 0x10:
-		//Clear
-		break;
-
-	case 0x82:
-		//Sync Read
-		break;
-
-	case 0x83:
-		//Sync Write
-		break;
-
-	case 0x92:
-		//Bulk Read
-		break;
-
-	case 0x93:
-		//Bulk Write
-		break;
-
-	default:
-		break;
-	}
-}
-
-void Protocol::PingInstruction()
-{
-	uint32_t modelNumber, FWVersion, ID;
-
-	controlTable.GetTable(0, &modelNumber, 2);
-	controlTable.GetTable(1, &FWVersion, 1);
 	controlTable.GetTable(2, &ID, 1);
+	controlTable.GetTable(7, &SecondaryID, 1);
 
-	AddParam((uint8_t) modelNumber);
-	AddParam((uint8_t) (modelNumber >> 8));
-	AddParam((uint8_t) FWVersion);
-
-	SetPacketErrorCode(0);
-	SetPacketID((uint8_t) ID);
-
-	SendPacket();
-}
-
-void Protocol::InitSendPacket()
-{
-	sendPacketParamIdx = 9;
-	sendPacketLenght = 4;
-}
-
-void Protocol::SetPacketID(uint8_t ID)
-{
-	sendPacket[4] = ID;
-}
-
-void Protocol::SetPacketErrorCode(uint8_t errorCode)
-{
-	sendPacket[8] = errorCode;
-}
-
-void Protocol::AddParam(uint8_t data)
-{
-	sendPacket[sendPacketParamIdx++] = data;
-	sendPacketLenght++;
-}
-
-void Protocol::SendPacket()
-{
-	sendPacket[5] = (uint8_t) sendPacketLenght;
-	sendPacket[6] = (uint8_t) (sendPacketLenght >> 8);
-
-	uint16_t packetCRC = CRC16(0, sendPacket, sendPacketLenght + 5);
-	;
-
-	sendPacket[sendPacketLenght + 5] = (uint8_t) packetCRC;
-	sendPacket[sendPacketLenght + 6] = (uint8_t) (packetCRC >> 8);
-
-	_SendPacket(sendPacket, sendPacketLenght + 7);
-}
-
-uint8_t Protocol::CheckID(uint8_t ID)
-{
-	uint32_t myID, secondaryID;
-
-	controlTable.GetTable(2, &myID, 1);
-	controlTable.GetTable(7, &secondaryID, 1);
-
-	if (ID == myID)
+	if (packetID == ID || packetID == SecondaryID)
 	{
 		return 1;
-	}
-	else if (ID == secondaryID)
-	{
-		return 2;
-	}
-	else if (ID == 0xFE)
-	{
-		return 3;
 	}
 	else
 	{
@@ -235,97 +78,220 @@ uint8_t Protocol::CheckID(uint8_t ID)
 	}
 }
 
-uint8_t Protocol::HeaderParser(uint8_t nextData)
+void Protocol::RunInstruction()
 {
-	switch (headerParserStatus)
+	switch (rxPacket[PKT_INSTRUCTION])
 	{
-	case 0:
-		recvCounter = 0;
-		recvPacketIdx = 0;
-
-		if (nextData == 0xFF)
-		{
-			recvPacket[recvPacketIdx++] = nextData;
-			headerParserStatus++;
-		}
-		else
-		{
-			headerParserStatus = 0;
-		}
+	case INST_PING:
+		InstPing();
 		break;
-
-	case 1:
-		if (nextData == 0xFF)
-		{
-			recvPacket[recvPacketIdx++] = nextData;
-			headerParserStatus++;
-		}
-		else
-		{
-			headerParserStatus = 0;
-		}
-		break;
-
-	case 2:
-		if (nextData == 0xFD)
-		{
-			recvPacket[recvPacketIdx++] = nextData;
-			headerParserStatus++;
-		}
-		else
-		{
-			headerParserStatus = 0;
-		}
-		break;
-
-	case 3:
-		if (nextData == 0x00)
-		{
-			recvPacket[recvPacketIdx++] = nextData;
-			headerParserStatus++;
-		}
-		else
-		{
-			headerParserStatus = 0;
-		}
-		break;
-
-	case 4:
-		if (nextData != 0xFD && nextData != 0xFF)
-		{
-			headerParserID = nextData;
-			recvPacket[recvPacketIdx++] = nextData;
-			headerParserStatus++;
-		}
-		else
-		{
-			headerParserStatus = 0;
-		}
-		break;
-
-	case 5:
-		headerParserLength = nextData;
-		recvPacket[recvPacketIdx++] = nextData;
-		headerParserStatus++;
-		break;
-
-	case 6:
-		headerParserLength = ((uint16_t) nextData << 8) | headerParserLength;
-		recvPacket[recvPacketIdx++] = nextData;
-		headerParserStatus++;
-		break;
-
-	case 7:
-		headrParserInstruction = nextData;
-		recvPacket[recvPacketIdx++] = nextData;
-		headerParserStatus = 0;
-		return 1;
 
 	default:
 		break;
 	}
+}
+
+void Protocol::InstPing()
+{
+	uint32_t modelNumber, FWVersion;
+
+	controlTable.GetTable(0, &modelNumber, 2);
+	controlTable.GetTable(1, &FWVersion, 1);
+
+	InitTx();
+	SetErrorCode(0x00);
+
+	AddTxParam(DXL_LOBYTE(modelNumber));
+	AddTxParam(DXL_HIBYTE(modelNumber));
+	AddTxParam(FWVersion);
+
+	SendPacket();
+}
+
+void Protocol::InstRead()
+{
+
+}
+
+void Protocol::InitTx()
+{
+	uint32_t ID;
+
+	controlTable.GetTable(2, &ID, 1);
+
+	txParamIdx = 0;
+
+	txPacket[PKT_HEADER0] = 0xFF;
+	txPacket[PKT_HEADER1] = 0xFF;
+	txPacket[PKT_HEADER2] = 0xFD;
+	txPacket[PKT_RESERVED] = 0x00;
+	txPacket[PKT_ID] = ID;
+	txPacket[PKT_INSTRUCTION] = 0x55;
+}
+
+void Protocol::SetErrorCode(uint8_t errorCode)
+{
+	txPacket[PKT_ERROR] = errorCode;
+}
+
+void Protocol::AddTxParam(uint8_t data)
+{
+	txPacket[PKT_PARAMETER0 + 1 + txParamIdx++] = data;
+}
+
+void Protocol::SendPacket()
+{
+	uint16_t packetlength = txParamIdx + 4;
+
+	txPacket[PKT_LENGTH_L] = DXL_LOBYTE(packetlength);
+	txPacket[PKT_LENGTH_H] = DXL_HIBYTE(packetlength);
+
+	AddStuffing(txPacket);
+
+	uint16_t crc = CRC16(0, txPacket, 5 + DXL_MAKEWORD(txPacket[PKT_LENGTH_L], txPacket[PKT_LENGTH_H]));
+
+	txPacket[5 + DXL_MAKEWORD(txPacket[PKT_LENGTH_L], txPacket[PKT_LENGTH_H])] = DXL_LOBYTE(crc);
+	txPacket[6 + DXL_MAKEWORD(txPacket[PKT_LENGTH_L], txPacket[PKT_LENGTH_H])] = DXL_HIBYTE(crc);
+
+	_SendPacket(txPacket, 7 + DXL_MAKEWORD(txPacket[PKT_LENGTH_L], txPacket[PKT_LENGTH_H]));
+}
+
+uint32_t Protocol::ReadPort(uint8_t *packet, uint32_t length)
+{
+	uint32_t rxLength = uartFIFO.size;
+
+	if (rxLength > length)
+		rxLength = length;
+
+	for (uint32_t i = 0; i < rxLength; i++)
+	{
+		packet[i] = uartFIFO.pop();
+	}
+
+	return rxLength;
+}
+
+int8_t Protocol::RxPacket()
+{
+	rxLength += ReadPort(&rxPacket[rxLength], waitLength - rxLength);
+
+	if (rxLength >= waitLength)
+	{
+		uint32_t idx = 0;
+
+		for (idx = 0; idx < (rxLength - 3); idx++)
+		{
+			if ((rxPacket[idx] == 0xFF) && (rxPacket[idx + 1] == 0xFF) && (rxPacket[idx + 2] == 0xFD) && (rxPacket[idx + 3] != 0xFD))
+				break;
+		}
+
+		if (idx == 0)
+		{
+			if (rxPacket[PKT_RESERVED] != 0x00 || rxPacket[PKT_ID] > 0xFC || DXL_MAKEWORD(rxPacket[PKT_LENGTH_L], rxPacket[PKT_LENGTH_H]) > RXPACKET_MAX_LEN)
+			{
+				for (uint16_t s = 0; s < rxLength - 1; s++)
+					rxPacket[s] = rxPacket[1 + s];
+				rxLength -= 1;
+			}
+
+			if (waitLength != (uint32_t) (DXL_MAKEWORD(rxPacket[PKT_LENGTH_L], rxPacket[PKT_LENGTH_H]) + PKT_LENGTH_H + 1))
+			{
+				waitLength = DXL_MAKEWORD(rxPacket[PKT_LENGTH_L], rxPacket[PKT_LENGTH_H]) + PKT_LENGTH_H + 1;
+			}
+
+			if (!CheckID(rxPacket[PKT_ID]))
+			{
+				return 2;
+			}
+
+			uint16_t crc = DXL_MAKEWORD(rxPacket[waitLength - 2], rxPacket[waitLength - 1]);
+			if (CRC16(0, rxPacket, waitLength - 2) == crc)
+			{
+				RemoveStuffing(rxPacket);
+				return 1;
+			}
+			else
+			{
+				return -1;
+			}
+		}
+		else
+		{
+			memcpy(&rxPacket[0], &rxPacket[idx], rxLength - idx);
+			rxLength -= idx;
+		}
+	}
 
 	return 0;
+}
+
+void Protocol::AddStuffing(uint8_t *packet)
+{
+	int32_t packet_length_in = DXL_MAKEWORD(packet[PKT_LENGTH_L], packet[PKT_LENGTH_H]);
+	int32_t packet_length_out = packet_length_in;
+
+	if (packet_length_in < 8) // INSTRUCTION, ADDR_L, ADDR_H, CRC16_L, CRC16_H + FF FF FD
+		return;
+
+	uint8_t *packet_ptr;
+	uint16_t packet_length_before_crc = packet_length_in - 2;
+	for (uint16_t i = 3; i < packet_length_before_crc; i++)
+	{
+		packet_ptr = &packet[i + PKT_INSTRUCTION - 2];
+		if (packet_ptr[0] == 0xFF && packet_ptr[1] == 0xFF && packet_ptr[2] == 0xFD)
+			packet_length_out++;
+	}
+
+	if (packet_length_in == packet_length_out)  // no stuffing required
+		return;
+
+	uint16_t out_index = packet_length_out + 6 - 2;  // last index before crc
+	uint16_t in_index = packet_length_in + 6 - 2;   // last index before crc
+	while (out_index != in_index)
+	{
+		if (packet[in_index] == 0xFD && packet[in_index - 1] == 0xFF && packet[in_index - 2] == 0xFF)
+		{
+			packet[out_index--] = 0xFD; // byte stuffing
+			if (out_index != in_index)
+			{
+				packet[out_index--] = packet[in_index--]; // FD
+				packet[out_index--] = packet[in_index--]; // FF
+				packet[out_index--] = packet[in_index--]; // FF
+			}
+		}
+		else
+		{
+			packet[out_index--] = packet[in_index--];
+		}
+	}
+
+	packet[PKT_LENGTH_L] = DXL_LOBYTE(packet_length_out);
+	packet[PKT_LENGTH_H] = DXL_HIBYTE(packet_length_out);
+
+	return;
+}
+
+void Protocol::RemoveStuffing(uint8_t *packet)
+{
+	int32_t i = 0, index = 0;
+	int32_t packetLengthIn = DXL_MAKEWORD(packet[PKT_LENGTH_L], packet[PKT_LENGTH_H]);
+	int32_t packetLengthOut = packetLengthIn;
+
+	index = PKT_INSTRUCTION;
+	for (i = 0; i < packetLengthIn - 2; i++)  // except CRC
+	{
+		if (packet[i + PKT_INSTRUCTION] == 0xFD && packet[i + PKT_INSTRUCTION + 1] == 0xFD && packet[i + PKT_INSTRUCTION - 1] == 0xFF && packet[i + PKT_INSTRUCTION - 2] == 0xFF)
+		{   // FF FF FD FD
+			packetLengthOut--;
+			i++;
+		}
+		packet[index++] = packet[i + PKT_INSTRUCTION];
+	}
+	packet[index++] = packet[PKT_INSTRUCTION + packetLengthIn - 2];
+	packet[index++] = packet[PKT_INSTRUCTION + packetLengthIn - 1];
+
+	packet[PKT_LENGTH_L] = DXL_LOBYTE(packetLengthOut);
+	packet[PKT_LENGTH_H] = DXL_HIBYTE(packetLengthOut);
 }
 
 uint16_t Protocol::CRC16(uint16_t crc_accum, uint8_t *data_blk_ptr, uint16_t data_blk_size)

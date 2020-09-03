@@ -7,7 +7,7 @@
 #define FW_VER_MAJOR 1
 #define FW_VER_MINOR 0
 
-#define MODEL_NUMBER 7777
+#define MODEL_NUMBER 54025
 
 #define ONBOARD_TEMP_COEFF 0.0f
 #define DC_VOLTAGE_COEFF 756e-5f

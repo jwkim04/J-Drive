@@ -20,6 +20,7 @@ void Control();
 void UartCallback();
 
 //TODO make error controller
+//TODO add TX FIFO and delay
 
 void JDriveMain()
 {
@@ -113,8 +114,7 @@ void JDriveMain()
 
 	while (1)
 	{
-		//printf("$ %f %f %f;\n", motorControl.jointVelocity, motorControl.dampedOscillationParam.xddot, motorControl.extendedJointPosition);
-		//printf("$%f %f;\n", motorControl.extendedJointPosition, motorControl.jointVelocity);
+
 	};
 }
 
@@ -143,7 +143,6 @@ void Control()
 			}
 		}
 	}
-
 	protocol.Update();
 }
 

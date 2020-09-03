@@ -1,4 +1,5 @@
 #include <Protocol/fifo.hpp>
+#include <Lowlevel/lowlevel.hpp>
 
 void FIFO::push(uint8_t data)
 {
