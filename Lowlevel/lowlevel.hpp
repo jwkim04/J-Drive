@@ -8,17 +8,19 @@
 #include <spi.h>
 #include <main.h>
 #include <usart.h>
+#include <Protocol/fifo.hpp>
+#include <BoardConfig/board_config.h>
 
 void StartOnBoardLED();
 void SetOnBoardLED(uint32_t duty);
 
 void SetControlFunc(void (*funcPtr)());
-void SetUartCallbackFunc(void (*funcPtr)());
 void StartUartInterrupt();
 void StartControlTimer();
 void StartInverterPWM();
 void SetInverterPWMDuty(uint32_t aDuty, uint32_t bDuty, uint32_t cDuty);
 void StartEEPROM();
+void SetUartFIFO(FIFO * _uartFIFO);
 
 void ReadEEPROM(uint16_t address, uint16_t *data);
 void WriteEEPROM(uint16_t address, uint16_t data);
@@ -43,5 +45,10 @@ void SetPhaseOrder(uint8_t _phaseOrder);
 void SPITransmitPool(uint8_t *dataTx, uint32_t len);
 void SPITransmit(uint8_t *dataTx, uint32_t len);
 uint8_t* SPIReceive();
+
+void StartTimer();
+uint32_t GetTimerTick();
+void TimerUpdate();
+void ResetTimer();
 
 #endif

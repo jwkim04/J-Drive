@@ -9,12 +9,15 @@ uint8_t adcIdx = 0;
 uint8_t SPIDataRx[2];
 uint8_t uartData;
 
+FIFO *uartFIFO;
 void (*Control)();
-void (*UartCallback)();
 
 uint16_t bufferCount = 0;
 
 uint8_t phaseOrder = 0;
+
+uint32_t timer = 0;
+uint8_t timerStatus = 0;
 
 void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
 {
@@ -62,8 +65,13 @@ void HAL_UART_TxCpltCallback(UART_HandleTypeDef *huart)
 
 void HAL_UART_RxCpltCallback(UART_HandleTypeDef *uartHandle)
 {
-	UartCallback();
-	HAL_UART_Receive_IT(&huart2, &uartData, 1);
+    uartFIFO->buffer[uartFIFO->topIdx++] = uartData;
+
+    if(uartFIFO->topIdx >= UART_FIFO_BUFFER_SIZE)
+    {
+    	uartFIFO->topIdx = 0;
+    }
+	HAL_UART_Receive_DMA(&huart2, &uartData, 1);
 }
 
 void _SendPacket(uint8_t *packet, uint32_t size)
@@ -72,9 +80,14 @@ void _SendPacket(uint8_t *packet, uint32_t size)
 	HAL_UART_Transmit_IT(&huart2, packet, size);
 }
 
+void SetUartFIFO(FIFO * _uartFIFO)
+{
+	uartFIFO = _uartFIFO;
+}
+
 void StartUartInterrupt()
 {
-	HAL_UART_Receive_IT(&huart2, &uartData, 1);
+	HAL_UART_Receive_DMA(&huart2, &uartData, 1);
 }
 
 void StartOnBoardLED()
@@ -100,11 +113,6 @@ void SetOnBoardLED(uint32_t duty)
 void SetControlFunc(void (*funcPtr)())
 {
 	Control = funcPtr;
-}
-
-void SetUartCallbackFunc(void (*funcPtr)())
-{
-	UartCallback = funcPtr;
 }
 
 void StartControlTimer()
@@ -225,4 +233,29 @@ void SPITransmit(uint8_t *dataTx, uint32_t len)
 uint8_t* SPIReceive()
 {
 	return SPIDataRx;
+}
+
+void StartTimer()
+{
+	timer = 0;
+	timerStatus = 1;
+}
+
+uint32_t GetTimerTick()
+{
+	return timer;
+}
+
+void TimerUpdate()
+{
+	if (timerStatus)
+	{
+		timer++;
+	}
+}
+
+void ResetTimer()
+{
+	timerStatus = 0;
+	timer = 0;
 }

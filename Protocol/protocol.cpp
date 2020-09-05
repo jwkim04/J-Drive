@@ -45,11 +45,10 @@ void Protocol::Update()
 	{
 		rxLength = 0;
 		waitLength = 10;
-
 		RunInstruction();
 	}
 
-	else if (result == 2)
+	if (result == 2)
 	{
 		rxLength = 0;
 		waitLength = 10;
@@ -57,18 +56,23 @@ void Protocol::Update()
 
 	else if (result == -1)
 	{
-		//SetOnBoardLED(0xFFF);
+		rxLength = 0;
+		waitLength = 10;
+
+		InitTx();
+		SetErrorCode(ERROR_CRC);
+		SendPacket();
 	}
 }
 
 int8_t Protocol::CheckID(uint8_t packetID)
 {
-	uint32_t ID, SecondaryID;
+	uint32_t ID, secondaryID;
 
 	controlTable.GetTable(2, &ID, 1);
-	controlTable.GetTable(7, &SecondaryID, 1);
+	controlTable.GetTable(7, &secondaryID, 1);
 
-	if (packetID == ID || packetID == SecondaryID)
+	if (packetID == ID || packetID == secondaryID)
 	{
 		return 1;
 	}
@@ -86,7 +90,18 @@ void Protocol::RunInstruction()
 		InstPing();
 		break;
 
+	case INST_READ:
+		InstRead();
+		break;
+
+	case INST_WRITE:
+		InstWrite();
+		break;
+
 	default:
+		InitTx();
+		SetErrorCode(ERROR_INST);
+		SendPacket();
 		break;
 	}
 }
@@ -99,7 +114,7 @@ void Protocol::InstPing()
 	controlTable.GetTable(1, &FWVersion, 1);
 
 	InitTx();
-	SetErrorCode(0x00);
+	SetErrorCode(ERROR_NONE);
 
 	AddTxParam(DXL_LOBYTE(modelNumber));
 	AddTxParam(DXL_HIBYTE(modelNumber));
@@ -110,14 +125,101 @@ void Protocol::InstPing()
 
 void Protocol::InstRead()
 {
+	uint16_t address = DXL_MAKEWORD(rxPacket[PKT_PARAMETER0], rxPacket[PKT_PARAMETER0 + 1]);
+	uint16_t dataLength = DXL_MAKEWORD(rxPacket[PKT_PARAMETER0 + 2], rxPacket[PKT_PARAMETER0 + 3]);
+	uint32_t data;
 
+	InitTx();
+	if (controlTable.GetTable(address, &data, dataLength) == 0)
+	{
+		SetErrorCode(ERROR_NONE);
+
+		switch (dataLength)
+		{
+		case 1:
+			AddTxParam((uint8_t) data);
+			break;
+
+		case 2:
+			AddTxParam((uint8_t) data);
+			AddTxParam((uint8_t) (data >> 8));
+			break;
+
+		case 3:
+			AddTxParam((uint8_t) data);
+			AddTxParam((uint8_t) (data >> 8));
+			AddTxParam((uint8_t) (data >> 16));
+			break;
+
+		case 4:
+			AddTxParam((uint8_t) data);
+			AddTxParam((uint8_t) (data >> 8));
+			AddTxParam((uint8_t) (data >> 16));
+			AddTxParam((uint8_t) (data >> 24));
+			break;
+		default:
+			break;
+		}
+
+		SendPacket();
+	}
+}
+
+void Protocol::InstWrite()
+{
+	uint16_t address = DXL_MAKEWORD(rxPacket[PKT_PARAMETER0], rxPacket[PKT_PARAMETER0 + 1]);
+	uint16_t dataLength = DXL_MAKEWORD(rxPacket[PKT_LENGTH_L], rxPacket[PKT_LENGTH_H]) - 5;
+	uint32_t data = 0;
+
+	switch (dataLength)
+	{
+	case 1:
+		data = rxPacket[PKT_PARAMETER0 + 2];
+		break;
+
+	case 2:
+		data = rxPacket[PKT_PARAMETER0 + 2];
+		data = ((uint32_t) rxPacket[PKT_PARAMETER0 + 3] << 8) | data;
+		break;
+
+	case 3:
+		data = rxPacket[PKT_PARAMETER0 + 2];
+		data = ((uint32_t) rxPacket[PKT_PARAMETER0 + 3] << 8) | data;
+		data = ((uint32_t) rxPacket[PKT_PARAMETER0 + 4] << 16) | data;
+		break;
+
+	case 4:
+		data = rxPacket[PKT_PARAMETER0 + 2];
+		data = ((uint32_t) rxPacket[PKT_PARAMETER0 + 3] << 8) | data;
+		data = ((uint32_t) rxPacket[PKT_PARAMETER0 + 4] << 16) | data;
+		data = ((uint32_t) rxPacket[PKT_PARAMETER0 + 5] << 24) | data;
+		break;
+
+	default:
+		break;
+	}
+
+	uint8_t result = controlTable.SetTable(address, data, dataLength);
+
+	if (result == 2)
+	{
+		InitTx();
+		SetErrorCode(ERROR_DATA_LENGTH);
+		SendPacket();
+	}
+	else if (result == 1)
+	{
+		InitTx();
+		SetErrorCode(ERROR_ACCESS);
+		SendPacket();
+	}
 }
 
 void Protocol::InitTx()
 {
-	uint32_t ID;
+	uint32_t ID = rxPacket[PKT_ID];
 
-	controlTable.GetTable(2, &ID, 1);
+	//controlTable.GetTable(2, &ID, 1);
 
 	txParamIdx = 0;
 
@@ -158,7 +260,7 @@ void Protocol::SendPacket()
 
 uint32_t Protocol::ReadPort(uint8_t *packet, uint32_t length)
 {
-	uint32_t rxLength = uartFIFO.size;
+	uint32_t rxLength = uartFIFO.topIdx - uartFIFO.bottomIdx;
 
 	if (rxLength > length)
 		rxLength = length;
@@ -194,25 +296,27 @@ int8_t Protocol::RxPacket()
 				rxLength -= 1;
 			}
 
-			if (waitLength != (uint32_t) (DXL_MAKEWORD(rxPacket[PKT_LENGTH_L], rxPacket[PKT_LENGTH_H]) + PKT_LENGTH_H + 1))
-			{
-				waitLength = DXL_MAKEWORD(rxPacket[PKT_LENGTH_L], rxPacket[PKT_LENGTH_H]) + PKT_LENGTH_H + 1;
-			}
-
 			if (!CheckID(rxPacket[PKT_ID]))
 			{
 				return 2;
 			}
 
-			uint16_t crc = DXL_MAKEWORD(rxPacket[waitLength - 2], rxPacket[waitLength - 1]);
-			if (CRC16(0, rxPacket, waitLength - 2) == crc)
+			if (waitLength != (uint32_t) (DXL_MAKEWORD(rxPacket[PKT_LENGTH_L], rxPacket[PKT_LENGTH_H]) + PKT_LENGTH_H + 1))
 			{
-				RemoveStuffing(rxPacket);
-				return 1;
+				waitLength = DXL_MAKEWORD(rxPacket[PKT_LENGTH_L], rxPacket[PKT_LENGTH_H]) + PKT_LENGTH_H + 1;
 			}
 			else
 			{
-				return -1;
+				uint16_t crc = DXL_MAKEWORD(rxPacket[waitLength - 2], rxPacket[waitLength - 1]);
+				if (CRC16(0, rxPacket, waitLength - 2) == crc)
+				{
+					RemoveStuffing(rxPacket);
+					return 1;
+				}
+				else
+				{
+					return -1;
+				}
 			}
 		}
 		else
@@ -230,7 +334,7 @@ void Protocol::AddStuffing(uint8_t *packet)
 	int32_t packet_length_in = DXL_MAKEWORD(packet[PKT_LENGTH_L], packet[PKT_LENGTH_H]);
 	int32_t packet_length_out = packet_length_in;
 
-	if (packet_length_in < 8) // INSTRUCTION, ADDR_L, ADDR_H, CRC16_L, CRC16_H + FF FF FD
+	if (packet_length_in < 8)
 		return;
 
 	uint8_t *packet_ptr;
@@ -242,21 +346,21 @@ void Protocol::AddStuffing(uint8_t *packet)
 			packet_length_out++;
 	}
 
-	if (packet_length_in == packet_length_out)  // no stuffing required
+	if (packet_length_in == packet_length_out)
 		return;
 
-	uint16_t out_index = packet_length_out + 6 - 2;  // last index before crc
-	uint16_t in_index = packet_length_in + 6 - 2;   // last index before crc
+	uint16_t out_index = packet_length_out + 6 - 2;
+	uint16_t in_index = packet_length_in + 6 - 2;
 	while (out_index != in_index)
 	{
 		if (packet[in_index] == 0xFD && packet[in_index - 1] == 0xFF && packet[in_index - 2] == 0xFF)
 		{
-			packet[out_index--] = 0xFD; // byte stuffing
+			packet[out_index--] = 0xFD;
 			if (out_index != in_index)
 			{
-				packet[out_index--] = packet[in_index--]; // FD
-				packet[out_index--] = packet[in_index--]; // FF
-				packet[out_index--] = packet[in_index--]; // FF
+				packet[out_index--] = packet[in_index--];
+				packet[out_index--] = packet[in_index--];
+				packet[out_index--] = packet[in_index--];
 			}
 		}
 		else
@@ -278,10 +382,10 @@ void Protocol::RemoveStuffing(uint8_t *packet)
 	int32_t packetLengthOut = packetLengthIn;
 
 	index = PKT_INSTRUCTION;
-	for (i = 0; i < packetLengthIn - 2; i++)  // except CRC
+	for (i = 0; i < packetLengthIn - 2; i++)
 	{
 		if (packet[i + PKT_INSTRUCTION] == 0xFD && packet[i + PKT_INSTRUCTION + 1] == 0xFD && packet[i + PKT_INSTRUCTION - 1] == 0xFF && packet[i + PKT_INSTRUCTION - 2] == 0xFF)
-		{   // FF FF FD FD
+		{
 			packetLengthOut--;
 			i++;
 		}
@@ -294,15 +398,15 @@ void Protocol::RemoveStuffing(uint8_t *packet)
 	packet[PKT_LENGTH_H] = DXL_HIBYTE(packetLengthOut);
 }
 
-uint16_t Protocol::CRC16(uint16_t crc_accum, uint8_t *data_blk_ptr, uint16_t data_blk_size)
+uint16_t Protocol::CRC16(uint16_t crcAccum, uint8_t *dataBlkPtr, uint16_t dataBlkSize)
 {
 	uint16_t i, j;
 
-	for (j = 0; j < data_blk_size; j++)
+	for (j = 0; j < dataBlkSize; j++)
 	{
-		i = ((uint16_t) (crc_accum >> 8) ^ data_blk_ptr[j]) & 0xFF;
-		crc_accum = (crc_accum << 8) ^ crc_table[i];
+		i = ((uint16_t) (crcAccum >> 8) ^ dataBlkPtr[j]) & 0xFF;
+		crcAccum = (crcAccum << 8) ^ crc_table[i];
 	}
 
-	return crc_accum;
+	return crcAccum;
 }

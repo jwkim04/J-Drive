@@ -5,6 +5,7 @@
 #include <Lowlevel/lowlevel.hpp>
 #include <Protocol/controlTable.hpp>
 #include <cstring>
+#include <stdio.h>
 
 #define DXL_MAKEWORD(a, b)  ((uint16_t)(((uint8_t)(((uint64_t)(a)) & 0xff)) | ((uint16_t)((uint8_t)(((uint64_t)(b)) & 0xff))) << 8))
 #define DXL_MAKEDWORD(a, b) ((uint32_t)(((uint16_t)(((uint64_t)(a)) & 0xffff)) | ((uint32_t)((uint16_t)(((uint64_t)(b)) & 0xffff))) << 16))
@@ -26,6 +27,12 @@
 #define INST_STATUS         85      // 0x55
 #define INST_SYNC_READ      130     // 0x82
 #define INST_BULK_WRITE     147     // 0x93
+
+#define ERROR_NONE			0x00
+#define ERROR_INST	0x02
+#define ERROR_CRC 			0x03
+#define ERROR_DATA_LENGTH	0x05
+#define ERROR_ACCESS		0x07
 
 #define PKT_HEADER0             0
 #define PKT_HEADER1             1
@@ -51,7 +58,6 @@ private:
 	uint8_t rxPacket[RXPACKET_MAX_LEN];
 	uint8_t txPacket[RXPACKET_MAX_LEN];
 
-
 	uint32_t rxLength = 0;
 	uint32_t waitLength = 10;
 	uint32_t ReadPort(uint8_t *packet, uint32_t length);
@@ -61,6 +67,7 @@ private:
 
 	void InstPing();
 	void InstRead();
+	void InstWrite();
 
 	int16_t txParamIdx = 0;
 	void InitTx();
@@ -70,7 +77,7 @@ private:
 
 	void AddStuffing(uint8_t *packet);
 	void RemoveStuffing(uint8_t *packet);
-	uint16_t CRC16(uint16_t crc_accum, uint8_t *data_blk_ptr, uint16_t data_blk_size);
+	uint16_t CRC16(uint16_t crcAccum, uint8_t *dataBlkPtr, uint16_t dataBlkSize);
 
 };
 

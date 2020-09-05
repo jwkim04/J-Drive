@@ -21,6 +21,7 @@
 #include "main.h"
 #include "adc.h"
 #include "crc.h"
+#include "dma.h"
 #include "spi.h"
 #include "tim.h"
 #include "usart.h"
@@ -56,10 +57,8 @@ void SystemClock_Config(void);
 /* USER CODE BEGIN PFP */
 int _write(int fd, char *str, int len)
 {
-	for(int i=0;i<len;i++)
-	{
-		HAL_UART_Transmit(&huart2, (uint8_t *)&str[i], 1, 0xFFFF);
-	}
+	HAL_GPIO_WritePin(ControlBus_TXEN_GPIO_Port, ControlBus_TXEN_Pin, GPIO_PIN_SET);
+	HAL_UART_Transmit_IT(&huart2, (uint8_t *)str, len);
 	return len;
 }
 
@@ -98,6 +97,7 @@ int main(void)
 
   /* Initialize all configured peripherals */
   MX_GPIO_Init();
+  MX_DMA_Init();
   MX_TIM2_Init();
   MX_CRC_Init();
   MX_USART2_UART_Init();

@@ -32,7 +32,6 @@ void ControlTable::Init()
 
 	InitTable(address++, 0, RW, 1, INT, RAM); //Inverter Enable
 	InitTable(address++, 0, RW, 2, INT, RAM); //LED
-	InitTable(address++, 0, RW, 1, INT, RAM); //Status Return Level
 	InitTable(address++, 0, R, 1, INT, RAM); //Registered Instruction
 	InitTable(address++, 0, R, 1, INT, RAM); //Hardware Error Status
 	InitTable(address++, 0, RW, 1, INT, RAM); //Bus Watchdog
@@ -65,7 +64,7 @@ uint8_t ControlTable::SetTable(uint16_t address, uint32_t data, uint8_t len)
 {
 	if (len < controlTableData[address].len)
 	{
-		return 1;
+		return 2;
 	}
 	else if (controlTableData[address].access == R)
 	{
@@ -85,7 +84,7 @@ uint8_t ControlTable::SetTable(uint16_t address, uint32_t data, uint8_t len)
 
 uint8_t ControlTable::GetTable(uint16_t address, uint32_t *data, uint8_t len)
 {
-	if (len != controlTableData[address].len)
+	if (address > 48)
 	{
 		return 1;
 	}

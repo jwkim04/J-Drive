@@ -45,7 +45,7 @@ void JDriveMain()
 	FastMathInit();
 	StartADC();
 	SetControlFunc(Control);
-	SetUartCallbackFunc(UartCallback);
+	SetUartFIFO(&protocol.uartFIFO);
 	StartControlTimer();
 	StartUartInterrupt();
 
@@ -110,16 +110,20 @@ void JDriveMain()
 	calibration.Init();
 	protection.Init();
 
+	StartTimer();
+
 	controlStatus = STATUS_CALIBRATION;
 
 	while (1)
 	{
-
-	};
+		protocol.Update();
+	}
 }
 
 void Control()
 {
+	TimerUpdate();
+
 	if (controlStatus != STATUS_NONE)
 	{
 		//protection.Update();
@@ -143,10 +147,4 @@ void Control()
 			}
 		}
 	}
-	protocol.Update();
-}
-
-void UartCallback()
-{
-	protocol.uartFIFO.push(GetUartData());
 }
