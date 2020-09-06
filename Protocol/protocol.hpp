@@ -14,19 +14,19 @@
 #define DXL_LOBYTE(w)       ((uint8_t)(((uint64_t)(w)) & 0xff))
 #define DXL_HIBYTE(w)       ((uint8_t)((((uint64_t)(w)) >> 8) & 0xff))
 
-#define INST_PING           1
-#define INST_READ           2
-#define INST_WRITE          3
-#define INST_REG_WRITE      4
-#define INST_ACTION         5
-#define INST_FACTORY_RESET  6
-#define INST_SYNC_WRITE     131     // 0x83
-#define INST_BULK_READ      146     // 0x92
-#define INST_REBOOT         8
-#define INST_CLEAR          16      // 0x10
-#define INST_STATUS         85      // 0x55
-#define INST_SYNC_READ      130     // 0x82
-#define INST_BULK_WRITE     147     // 0x93
+#define INST_PING           0x1
+#define INST_READ           0x2
+#define INST_WRITE          0x3
+#define INST_REG_WRITE      0x4
+#define INST_ACTION         0x5
+#define INST_FACTORY_RESET  0x6
+#define INST_SYNC_WRITE     0x83
+#define INST_BULK_READ      0x92
+#define INST_REBOOT         0x8
+#define INST_CLEAR          0x10
+#define INST_STATUS         0x55
+#define INST_SYNC_READ      0x82
+#define INST_BULK_WRITE     0x93
 
 #define ERROR_NONE			0x00
 #define ERROR_INST	0x02
@@ -45,7 +45,7 @@
 #define PKT_ERROR               8
 #define PKT_PARAMETER0          8
 
-#define RXPACKET_MAX_LEN    (1*1024)
+#define RXPACKET_MAX_LEN    1024
 
 class Protocol
 {

@@ -163,6 +163,12 @@ void Protocol::InstRead()
 
 		SendPacket();
 	}
+	else
+	{
+		InitTx();
+		SetErrorCode(ERROR_ACCESS);
+		SendPacket();
+	}
 }
 
 void Protocol::InstWrite()
@@ -217,17 +223,13 @@ void Protocol::InstWrite()
 
 void Protocol::InitTx()
 {
-	uint32_t ID = rxPacket[PKT_ID];
-
-	//controlTable.GetTable(2, &ID, 1);
-
 	txParamIdx = 0;
 
 	txPacket[PKT_HEADER0] = 0xFF;
 	txPacket[PKT_HEADER1] = 0xFF;
 	txPacket[PKT_HEADER2] = 0xFD;
 	txPacket[PKT_RESERVED] = 0x00;
-	txPacket[PKT_ID] = ID;
+	txPacket[PKT_ID] = controlTable.controlTableData[2].data;
 	txPacket[PKT_INSTRUCTION] = 0x55;
 }
 
@@ -243,6 +245,11 @@ void Protocol::AddTxParam(uint8_t data)
 
 void Protocol::SendPacket()
 {
+	if (rxPacket[PKT_ID] == controlTable.controlTableData[7].data && controlTable.controlTableData[7].data != controlTable.controlTableData[2].data)
+	{
+		return;
+	}
+
 	uint16_t packetlength = txParamIdx + 4;
 
 	txPacket[PKT_LENGTH_L] = DXL_LOBYTE(packetlength);
@@ -331,46 +338,46 @@ int8_t Protocol::RxPacket()
 
 void Protocol::AddStuffing(uint8_t *packet)
 {
-	int32_t packet_length_in = DXL_MAKEWORD(packet[PKT_LENGTH_L], packet[PKT_LENGTH_H]);
-	int32_t packet_length_out = packet_length_in;
+	int32_t packetLengthIn = DXL_MAKEWORD(packet[PKT_LENGTH_L], packet[PKT_LENGTH_H]);
+	int32_t packetLengthOut = packetLengthIn;
 
-	if (packet_length_in < 8)
+	if (packetLengthIn < 8)
 		return;
 
-	uint8_t *packet_ptr;
-	uint16_t packet_length_before_crc = packet_length_in - 2;
-	for (uint16_t i = 3; i < packet_length_before_crc; i++)
+	uint8_t *packetPtr;
+	uint16_t packetLengthBeforeCrc = packetLengthIn - 2;
+	for (uint16_t i = 3; i < packetLengthBeforeCrc; i++)
 	{
-		packet_ptr = &packet[i + PKT_INSTRUCTION - 2];
-		if (packet_ptr[0] == 0xFF && packet_ptr[1] == 0xFF && packet_ptr[2] == 0xFD)
-			packet_length_out++;
+		packetPtr = &packet[i + PKT_INSTRUCTION - 2];
+		if (packetPtr[0] == 0xFF && packetPtr[1] == 0xFF && packetPtr[2] == 0xFD)
+			packetLengthOut++;
 	}
 
-	if (packet_length_in == packet_length_out)
+	if (packetLengthIn == packetLengthOut)
 		return;
 
-	uint16_t out_index = packet_length_out + 6 - 2;
-	uint16_t in_index = packet_length_in + 6 - 2;
-	while (out_index != in_index)
+	uint16_t outIndex = packetLengthOut + 6 - 2;
+	uint16_t inIndex = packetLengthIn + 6 - 2;
+	while (outIndex != inIndex)
 	{
-		if (packet[in_index] == 0xFD && packet[in_index - 1] == 0xFF && packet[in_index - 2] == 0xFF)
+		if (packet[inIndex] == 0xFD && packet[inIndex - 1] == 0xFF && packet[inIndex - 2] == 0xFF)
 		{
-			packet[out_index--] = 0xFD;
-			if (out_index != in_index)
+			packet[outIndex--] = 0xFD;
+			if (outIndex != inIndex)
 			{
-				packet[out_index--] = packet[in_index--];
-				packet[out_index--] = packet[in_index--];
-				packet[out_index--] = packet[in_index--];
+				packet[outIndex--] = packet[inIndex--];
+				packet[outIndex--] = packet[inIndex--];
+				packet[outIndex--] = packet[inIndex--];
 			}
 		}
 		else
 		{
-			packet[out_index--] = packet[in_index--];
+			packet[outIndex--] = packet[inIndex--];
 		}
 	}
 
-	packet[PKT_LENGTH_L] = DXL_LOBYTE(packet_length_out);
-	packet[PKT_LENGTH_H] = DXL_HIBYTE(packet_length_out);
+	packet[PKT_LENGTH_L] = DXL_LOBYTE(packetLengthOut);
+	packet[PKT_LENGTH_H] = DXL_HIBYTE(packetLengthOut);
 
 	return;
 }

@@ -8,6 +8,7 @@
 #include <Util/util.hpp>
 #include <BoardConfig/board_config.h>
 #include <DigitalFilter/lowpass.hpp>
+#include <Protocol/controlTable.hpp>
 
 enum MotorControlMode
 {
@@ -60,14 +61,17 @@ struct PIDParam
 struct MotorParam
 {
 	uint32_t polePair;
-	float encoderOffset;
+	float encoderOffset = 0.0f;
 };
 
 class MotorControl
 {
 public:
 	void Init();
+	void SetControlTable(ControlTable *_controlTable);
 	void ControlUpdate();
+
+	AS5047 Encoder = AS5047();
 
 	LowPass filter_d = LowPass();
 	LowPass filter_q = LowPass();
@@ -86,9 +90,11 @@ public:
 
 	float supplyVoltage;
 
-	int32_t ADC1Offset;
-	int32_t ADC2Offset;
+	int32_t ADC1Offset = 2047;
+	int32_t ADC2Offset = 2047;
 
+	float presentCurrent;
+	float presentVoltage;
 
 	float jointPosition;
 	float rotorPosition;
@@ -105,7 +111,7 @@ public:
 	uint16_t aPWM, bPWM, cPWM;
 
 private:
-	AS5047 Encoder = AS5047();
+	ControlTable *controlTable;
 
 	void DampedOscillationPositionControl();
 	void PositionControl();

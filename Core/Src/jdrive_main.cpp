@@ -14,12 +14,16 @@ Calibration calibration = Calibration();
 Protection protection = Protection();
 Protocol protocol = Protocol();
 
+ControlTable *controlTable;
+
 uint8_t controlStatus = STATUS_NONE;
 
-void Control();
-void UartCallback();
+float presentSupplyVoltage;
+float presentBoardTemp;
 
-//TODO make error controller
+void Control();
+
+//TODO make error control code
 //TODO add TX FIFO and delay
 
 void JDriveMain()
@@ -40,7 +44,36 @@ void JDriveMain()
 	}
 
 	protocol.controlTable.Init();
-	protocol.controlTable.LoadTableFromEEPROM();
+	controlTable = &protocol.controlTable;
+
+	if (ReadEEPROM(2) > (uint32_t) 0xFE)
+	{
+		controlTable->FactoryReset();
+	}
+
+	controlTable->LoadControlTableFromEEPROM();
+
+	switch (controlTable->controlTableData[3].data)
+	{
+	case 0:
+		SetUartBuadRate(9600);
+		break;
+	case 1:
+		SetUartBuadRate(57600);
+		break;
+	case 2:
+		SetUartBuadRate(115200);
+		break;
+	case 3:
+		SetUartBuadRate(1000000);
+		break;
+	case 4:
+		SetUartBuadRate(2000000);
+		break;
+	default:
+		SetUartBuadRate(9600);
+		break;
+	}
 
 	FastMathInit();
 	StartADC();
@@ -48,6 +81,10 @@ void JDriveMain()
 	SetUartFIFO(&protocol.uartFIFO);
 	StartControlTimer();
 	StartUartInterrupt();
+
+	motorControl.SetControlTable(&protocol.controlTable);
+	calibration.SetControlTable(&protocol.controlTable);
+	protection.SetControlTable(&protocol.controlTable);
 
 	Delaymillis(1);
 	for (uint8_t i = 0; i < 100; i++)
@@ -58,7 +95,7 @@ void JDriveMain()
 	motorControl.supplyVoltage /= 100.0f;
 	protection.supplyVoltage = motorControl.supplyVoltage;
 
-	if (motorControl.supplyVoltage >= OVERVOLTAGE_PROTECTION || motorControl.supplyVoltage <= UNDERVOLTAGE_PROTECTION)
+	if (motorControl.supplyVoltage >= *(float*) &controlTable->controlTableData[12].data || motorControl.supplyVoltage <= *(float*) &controlTable->controlTableData[13].data)
 	{
 		while (1)
 		{
@@ -73,38 +110,9 @@ void JDriveMain()
 	Delaymillis(500);
 	SetOnBoardLED(0x0);
 
-	calibration.calibrationVoltage = 0.05f;
-	motorControl.motorParam.polePair = 7;
-	SetPhaseOrder(1);
+	SetPhaseOrder(controlTable->controlTableData[23].data);
 
-	motorControl.controlMode = DAMPED_OSCILLATION_POSITION_CONTROL_MODE;
-
-	motorControl.controlParam.goalPosition = 0.0f;
-
-	motorControl.dampedOscillationParam.k = 0.01f;
-	motorControl.dampedOscillationParam.b = 0.00f;
-	motorControl.dampedOscillationParam.m = 0.00f;
-
-	motorControl.positionPIDParam.Kp = 10.0f;
-	motorControl.positionPIDParam.Ki = 0.00f;
-	motorControl.positionPIDParam.Ka = 0;
-
-	motorControl.controlParam.goalVelocity = 40.0f;
-	motorControl.velocityPIDParam.Kp = 0.005f;
-	motorControl.velocityPIDParam.Ki = 0.01f;
-	motorControl.velocityPIDParam.Ka = 1.0 / motorControl.velocityPIDParam.Kp;
-
-	motorControl.controlParam.goalCurrent = 0.5;
-	motorControl.currentPIDParam_d.Kp = 6.0f;
-	motorControl.currentPIDParam_q.Kp = 6.0f;
-	motorControl.currentPIDParam_d.Ki = 20.0f;
-	motorControl.currentPIDParam_q.Ki = 20.0f;
-	motorControl.currentPIDParam_d.Ka = 1.0f / motorControl.currentPIDParam_d.Kp;
-	motorControl.currentPIDParam_q.Ka = 1.0f / motorControl.currentPIDParam_q.Kp;
-
-	motorControl.controlParam.goalVoltage = 0.2f;
-
-	OnGateDriver();
+	OffGateDriver();
 	StartInverterPWM();
 	motorControl.Init();
 	calibration.Init();
@@ -112,7 +120,7 @@ void JDriveMain()
 
 	StartTimer();
 
-	controlStatus = STATUS_CALIBRATION;
+	controlStatus = STATUS_NONE;
 
 	while (1)
 	{
@@ -120,13 +128,58 @@ void JDriveMain()
 	}
 }
 
+uint32_t pos;
+
 void Control()
 {
 	TimerUpdate();
 
+	presentSupplyVoltage = (float) GetDCVoltageRaw() * DC_VOLTAGE_COEFF;
+	presentBoardTemp = (float) GetFETTempRaw() * ONBOARD_TEMP_COEFF;
+	controlTable->controlTableData[47].data = *(uint32_t*) &presentSupplyVoltage;
+	controlTable->controlTableData[48].data = *(uint32_t*) &presentBoardTemp;
+	controlTable->controlTableData[49].data = GetMotorTempRaw();
+
+	controlTable->controlTableData[40].data = GetTimerTick();
+
+	SetPhaseOrder(controlTable->controlTableData[23].data);
+
+	motorControl.Encoder.polePair = controlTable->controlTableData[27].data;
+	motorControl.motorParam.polePair = controlTable->controlTableData[27].data;
+
+	if (controlTable->controlTableData[50].data == 1)
+	{
+		controlStatus = STATUS_CALIBRATION;
+	}
+
+	if (controlTable->controlTableData[28].data == 1)
+	{
+		OnGateDriver();
+	}
+	else
+	{
+		OffGateDriver();
+		SetInverterPWMDuty(0x7FF, 0x7FF, 0x7FF);
+		controlTable->controlTableData[29].data = 0;
+		controlStatus = STATUS_NONE;
+	}
+
+	if (controlTable->controlTableData[29].data == 1 && controlStatus != STATUS_CALIBRATION && controlTable->controlTableData[28].data == 1)
+	{
+		controlStatus = STATUS_MOTORCONTROL;
+	}
+	else
+	{
+		if (controlStatus != STATUS_CALIBRATION)
+		{
+			SetInverterPWMDuty(0x7FF, 0x7FF, 0x7FF);
+			controlStatus = STATUS_NONE;
+		}
+	}
+
 	if (controlStatus != STATUS_NONE)
 	{
-		//protection.Update();
+		protection.Update();
 
 		if (controlStatus == STATUS_MOTORCONTROL)
 		{
@@ -134,16 +187,24 @@ void Control()
 		}
 		else if (controlStatus == STATUS_CALIBRATION)
 		{
+			SetOnBoardLED(0xFFF);
 			calibration.CalibrationUpdate();
 
 			if (calibration.done)
 			{
-				motorControl.motorParam.encoderOffset = calibration.encoderOffset;
-				motorControl.ADC1Offset = calibration.ADC1Offset;
-				motorControl.ADC2Offset = calibration.ADC2Offset;
+				protocol.controlTable.SetTable(28, 0, 1);
+				protocol.controlTable.SetTable(26, *(uint32_t*) &calibration.encoderOffset, 4);
+				protocol.controlTable.SetTable(24, calibration.ADC1Offset, 4);
+				protocol.controlTable.SetTable(25, calibration.ADC2Offset, 4);
+				protocol.controlTable.SetTable(28, 1, 1);
+
 				motorControl.Init();
 				calibration.Init();
-				controlStatus = STATUS_MOTORCONTROL;
+
+				protocol.controlTable.SetTable(50, 0, 1);
+
+				controlStatus = STATUS_NONE;
+				SetOnBoardLED(0x0);
 			}
 		}
 	}

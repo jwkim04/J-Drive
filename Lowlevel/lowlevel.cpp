@@ -65,12 +65,12 @@ void HAL_UART_TxCpltCallback(UART_HandleTypeDef *huart)
 
 void HAL_UART_RxCpltCallback(UART_HandleTypeDef *uartHandle)
 {
-    uartFIFO->buffer[uartFIFO->topIdx++] = uartData;
+	uartFIFO->buffer[uartFIFO->topIdx++] = uartData;
 
-    if(uartFIFO->topIdx >= UART_FIFO_BUFFER_SIZE)
-    {
-    	uartFIFO->topIdx = 0;
-    }
+	if (uartFIFO->topIdx >= UART_FIFO_BUFFER_SIZE)
+	{
+		uartFIFO->topIdx = 0;
+	}
 	HAL_UART_Receive_DMA(&huart2, &uartData, 1);
 }
 
@@ -80,7 +80,7 @@ void _SendPacket(uint8_t *packet, uint32_t size)
 	HAL_UART_Transmit_IT(&huart2, packet, size);
 }
 
-void SetUartFIFO(FIFO * _uartFIFO)
+void SetUartFIFO(FIFO *_uartFIFO)
 {
 	uartFIFO = _uartFIFO;
 }
@@ -93,16 +93,6 @@ void StartUartInterrupt()
 void StartOnBoardLED()
 {
 	HAL_TIM_PWM_Start(&htim2, TIM_CHANNEL_4);
-}
-
-void ReadEEPROM(uint16_t address, uint16_t *data)
-{
-
-}
-
-void WriteEEPROM(uint16_t address, uint16_t data)
-{
-
 }
 
 void SetOnBoardLED(uint32_t duty)
@@ -243,7 +233,7 @@ void StartTimer()
 
 uint32_t GetTimerTick()
 {
-	return timer;
+	return timer / 21;
 }
 
 void TimerUpdate()
@@ -258,4 +248,97 @@ void ResetTimer()
 {
 	timerStatus = 0;
 	timer = 0;
+}
+
+uint32_t GetSector(uint32_t Address)
+{
+	uint32_t sector = 0;
+
+	if ((Address < ADDR_FLASH_SECTOR_1) && (Address >= ADDR_FLASH_SECTOR_0))
+	{
+		sector = FLASH_SECTOR_0;
+	}
+	else if ((Address < ADDR_FLASH_SECTOR_2) && (Address >= ADDR_FLASH_SECTOR_1))
+	{
+		sector = FLASH_SECTOR_1;
+	}
+	else if ((Address < ADDR_FLASH_SECTOR_3) && (Address >= ADDR_FLASH_SECTOR_2))
+	{
+		sector = FLASH_SECTOR_2;
+	}
+	else if ((Address < ADDR_FLASH_SECTOR_4) && (Address >= ADDR_FLASH_SECTOR_3))
+	{
+		sector = FLASH_SECTOR_3;
+	}
+	else if ((Address < ADDR_FLASH_SECTOR_5) && (Address >= ADDR_FLASH_SECTOR_4))
+	{
+		sector = FLASH_SECTOR_4;
+	}
+	else if ((Address < ADDR_FLASH_SECTOR_6) && (Address >= ADDR_FLASH_SECTOR_5))
+	{
+		sector = FLASH_SECTOR_5;
+	}
+	else if ((Address < ADDR_FLASH_SECTOR_7) && (Address >= ADDR_FLASH_SECTOR_6))
+	{
+		sector = FLASH_SECTOR_6;
+	}
+	else
+	{
+		sector = FLASH_SECTOR_7;
+	}
+
+	return sector;
+}
+
+void UnLockEEPROM()
+{
+	FLASH_EraseInitTypeDef eraseInitStruct;
+	uint32_t firstSector = 0;
+	uint32_t nbOfSectors = 0;
+	uint32_t sectorError = 0;
+
+	firstSector = GetSector(ADDR_FLASH_SECTOR_7);
+	nbOfSectors = GetSector(ADDR_FLASH_SECTOR_7) - firstSector + 1;
+
+	eraseInitStruct.TypeErase = TYPEERASE_SECTORS;
+	eraseInitStruct.VoltageRange = VOLTAGE_RANGE_3;
+	eraseInitStruct.Sector = firstSector;
+	eraseInitStruct.NbSectors = nbOfSectors;
+
+	HAL_FLASH_Unlock();
+
+	HAL_FLASHEx_Erase(&eraseInitStruct, &sectorError);
+}
+
+void WriteEEPROM(uint32_t address, uint32_t data)
+{
+	HAL_FLASH_Program(TYPEPROGRAM_WORD, ADDR_FLASH_SECTOR_7 + (address * 4), data);
+}
+
+uint32_t ReadEEPROM(uint32_t address)
+{
+	volatile uint32_t data = 0;
+	uint32_t _address = ADDR_FLASH_SECTOR_7 + (address * 4);
+
+	data = *(volatile uint32_t*) _address;
+
+	return data;
+}
+
+void LockEEPROM()
+{
+	HAL_FLASH_Lock();
+}
+
+void SetUartBuadRate(uint32_t buadRate)
+{
+	  huart2.Instance = USART2;
+	  huart2.Init.BaudRate = buadRate;
+	  huart2.Init.WordLength = UART_WORDLENGTH_8B;
+	  huart2.Init.StopBits = UART_STOPBITS_1;
+	  huart2.Init.Parity = UART_PARITY_NONE;
+	  huart2.Init.Mode = UART_MODE_TX_RX;
+	  huart2.Init.HwFlowCtl = UART_HWCONTROL_NONE;
+	  huart2.Init.OverSampling = UART_OVERSAMPLING_16;
+	  HAL_UART_Init(&huart2);
 }

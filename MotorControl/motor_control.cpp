@@ -3,6 +3,11 @@
 
 void MotorControl::Init()
 {
+	motorParam.encoderOffset = *(float*)&controlTable->controlTableData[26].data;
+	ADC1Offset = controlTable->controlTableData[24].data;
+	ADC2Offset = controlTable->controlTableData[25].data;
+	motorParam.polePair = controlTable->controlTableData[27].data;
+
 	Encoder.encoderOffset = motorParam.encoderOffset;
 	Encoder.polePair = motorParam.polePair;
 	Encoder.filter_vel.SetParam(VELOCITY_FILTER_CUTOFF_FREQ, DELTA_T);
@@ -13,6 +18,11 @@ void MotorControl::Init()
 	filter_d.SetParam(CURRENT_FILTER_CUTOFF_FREQ, DELTA_T);
 	filter_q.SetParam(CURRENT_FILTER_CUTOFF_FREQ, DELTA_T);
 	filter_acceleration.SetParam(ACCEKERATION_FILTER_CUTOFF_FREQ, DELTA_T);
+}
+
+void MotorControl::SetControlTable(ControlTable *_controlTable)
+{
+	controlTable = _controlTable;
 }
 
 void MotorControl::ControlUpdate()
@@ -32,7 +42,62 @@ void MotorControl::ControlUpdate()
 	id = filter_d.Update(id);
 	iq = filter_q.Update(iq);
 
+	presentCurrent = id + iq;
+	presentVoltage = vd + vq;
+	controlTable->controlTableData[43].data = *(uint32_t*)&presentVoltage;
+	controlTable->controlTableData[44].data = *(uint32_t*)&presentCurrent;
+	controlTable->controlTableData[45].data = *(uint32_t*)&jointVelocity;
+	controlTable->controlTableData[46].data = *(uint32_t*)&extendedJointPosition;
+
+	if(abs(jointVelocity) > *(float*)&controlTable->controlTableData[9].data)
+	{
+		controlTable->controlTableData[41].data = 1;
+	}
+	else
+	{
+		controlTable->controlTableData[41].data = 0;
+	}
+
+	controlParam.goalVoltage = *(float*)&controlTable->controlTableData[33].data;
+	controlParam.goalCurrent = *(float*)&controlTable->controlTableData[34].data;
+	controlParam.goalVelocity = *(float*)&controlTable->controlTableData[35].data;
+	controlParam.goalPosition = *(float*)&controlTable->controlTableData[36].data;
+
+	dampedOscillationParam.k = *(float*)&controlTable->controlTableData[37].data;
+	dampedOscillationParam.b = *(float*)&controlTable->controlTableData[38].data;
+	dampedOscillationParam.m = *(float*)&controlTable->controlTableData[39].data;
+
+	positionPIDParam.Kp = *(float*)&controlTable->controlTableData[22].data;
+	positionPIDParam.Ki = *(float*)&controlTable->controlTableData[21].data;
+	positionPIDParam.Ka = 1.0f / positionPIDParam.Kp;
+	if(positionPIDParam.Kp == 0.0f)
+	{
+		positionPIDParam.Ka = 0;
+	}
+
+	velocityPIDParam.Kp = *(float*)&controlTable->controlTableData[20].data;
+	velocityPIDParam.Ki = *(float*)&controlTable->controlTableData[19].data;
+	velocityPIDParam.Ka = 1.0 / velocityPIDParam.Kp;
+	if(velocityPIDParam.Ka == 0.0f)
+	{
+		velocityPIDParam.Ka = 0;
+	}
+
+	currentPIDParam_d.Kp = *(float*)&controlTable->controlTableData[18].data;
+	currentPIDParam_q.Kp = *(float*)&controlTable->controlTableData[18].data;
+	currentPIDParam_d.Ki = *(float*)&controlTable->controlTableData[17].data;
+	currentPIDParam_q.Ki = *(float*)&controlTable->controlTableData[17].data;
+	currentPIDParam_d.Ka = 1.0f / currentPIDParam_d.Kp;
+	currentPIDParam_q.Ka = 1.0f / currentPIDParam_q.Kp;
+	if(currentPIDParam_d.Ka == 0.0f)
+	{
+		currentPIDParam_d.Ka = 0.0f;
+		currentPIDParam_q.Ka = 0.0f;
+	}
+
 	controlParam.goalVoltage = Limiter(controlParam.goalVoltage, 0.9);
+
+	controlMode = controlTable->controlTableData[6].data;
 
 	if (controlMode == VOLTAGE_CONTROL_MODE)
 	{
@@ -50,7 +115,7 @@ void MotorControl::ControlUpdate()
 	{
 		PositionControl();
 	}
-	else if(controlMode == DAMPED_OSCILLATION_POSITION_CONTROL_MODE)
+	else
 	{
 		DampedOscillationPositionControl();
 	}
@@ -58,13 +123,13 @@ void MotorControl::ControlUpdate()
 
 void MotorControl::DampedOscillationPositionControl()
 {
-	dampedOscillationParam.x = controlParam.goalPosition - extendedJointPosition;
+	dampedOscillationParam.x = (controlParam.goalPosition + *(float*)&controlTable->controlTableData[8].data) - extendedJointPosition;
 	dampedOscillationParam.xdot = jointVelocity;
 
 	dampedOscillationParam.xddot = (dampedOscillationParam.xdot - dampedOscillationParam._xddotBuff[dampedOscillationParam._buffIdx]) / (DELTA_T * 10.0f);
 	dampedOscillationParam.xddot = filter_acceleration.Update(dampedOscillationParam.xddot);
 	dampedOscillationParam._xddotBuff[dampedOscillationParam._buffIdx++] = dampedOscillationParam.xdot;
-	if(dampedOscillationParam._buffIdx >= 10)
+	if (dampedOscillationParam._buffIdx >= 10)
 	{
 		dampedOscillationParam._buffIdx = 0;
 	}
@@ -74,7 +139,6 @@ void MotorControl::DampedOscillationPositionControl()
 	currentCommand = dampedOscillationParam.F;
 
 	currentCommand = Limiter(currentCommand, controlParam.goalCurrent);
-
 
 	currentPIDParam_d.error = 0.0f - id;
 	currentPIDParam_q.error = currentCommand - iq;
@@ -109,7 +173,7 @@ void MotorControl::DampedOscillationPositionControl()
 
 void MotorControl::PositionControl()
 {
-	positionPIDParam.error = controlParam.goalPosition - extendedJointPosition;
+	positionPIDParam.error = (controlParam.goalPosition + *(float*)&controlTable->controlTableData[8].data) - extendedJointPosition;
 
 	positionPIDParam.p = positionPIDParam.error * positionPIDParam.Kp;
 
@@ -120,7 +184,6 @@ void MotorControl::PositionControl()
 	positionPIDParam.a = velocityCommand;
 	velocityCommand = Limiter(velocityCommand, controlParam.goalVelocity);
 	positionPIDParam.a = (positionPIDParam.a - velocityCommand) * positionPIDParam.Ka;
-
 
 	velocityPIDParam.error = velocityCommand - jointVelocity;
 
@@ -133,7 +196,6 @@ void MotorControl::PositionControl()
 	velocityPIDParam.a = currentCommand;
 	currentCommand = Limiter(currentCommand, controlParam.goalCurrent);
 	velocityPIDParam.a = (velocityPIDParam.a - currentCommand) * velocityPIDParam.Ka;
-
 
 	currentPIDParam_d.error = 0.0f - id;
 	currentPIDParam_q.error = currentCommand - iq;
@@ -179,7 +241,6 @@ void MotorControl::VelocityControl()
 	velocityPIDParam.a = currentCommand;
 	currentCommand = Limiter(currentCommand, controlParam.goalCurrent);
 	velocityPIDParam.a = (velocityPIDParam.a - currentCommand) * velocityPIDParam.Ka;
-
 
 	currentPIDParam_d.error = 0.0f - id;
 	currentPIDParam_q.error = currentCommand - iq;
@@ -270,6 +331,16 @@ void MotorControl::DQZTrans(float a, float b, float c, float theta, float *d, fl
 
 void MotorControl::DQZTransInv(float d, float q, float theta, float *a, float *b, float *c)
 {
+	if (d > 0.9f)
+		d = 0.9f;
+	if (d < -0.9f)
+		d = -0.9f;
+
+	if (q > 0.9f)
+		q = 0.9f;
+	if (q < -0.9f)
+		q = -0.9f;
+
 	float cf = FastCos(theta);
 	float sf = FastSin(theta);
 

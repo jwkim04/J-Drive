@@ -6,6 +6,14 @@ void Calibration::Init()
 	startUpCounter = 0;
 	avgCounter = 0;
 	EncoderCalibration = 0;
+	encoderOffset = 0.0f;
+	ADC1Offset = 0;
+	ADC2Offset = 0;
+}
+
+void Calibration::SetControlTable(ControlTable *_controlTable)
+{
+	controlTable = _controlTable;
 }
 
 void Calibration::CalibrationUpdate()
@@ -16,7 +24,7 @@ void Calibration::CalibrationUpdate()
 		{
 			float a, b, c;
 
-			DQZTransInv(Limiter(calibrationVoltage, 0.9f), 0.0f, 0.0f, &a, &b, &c);
+			DQZTransInv(Limiter(*(float*)&controlTable->controlTableData[51].data, 0.9f), 0.0f, 0.0f, &a, &b, &c);
 
 			a = a + 0.5f;
 			b = b + 0.5f;
@@ -92,6 +100,16 @@ void Calibration::DQZTrans(float a, float b, float c, float theta, float *d, flo
 
 void Calibration::DQZTransInv(float d, float q, float theta, float *a, float *b, float *c)
 {
+	if (d > 0.9f)
+		d = 0.9f;
+	if (d < -0.9f)
+		d = -0.9f;
+
+	if (q > 0.9f)
+		q = 0.9f;
+	if (q < -0.9f)
+		q = -0.9f;
+
 	float cf = FastCos(theta);
 	float sf = FastSin(theta);
 

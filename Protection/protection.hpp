@@ -5,6 +5,8 @@
 #include <cstdint>
 #include <Lowlevel/lowlevel.hpp>
 #include <Core/Inc/jdrive_main.hpp>
+#include <Protocol/controlTable.hpp>
+#include <ErrorControl/errorControl.hpp>
 
 extern uint8_t controlStatus;
 
@@ -15,10 +17,11 @@ public:
 	void Init();
 
 	float supplyVoltage = 0.0f;
-	uint8_t useBattery = 0;
-	float batteryCutoffVoltage = 0.0f;
+
+	void SetControlTable(ControlTable *_controlTable);
 
 private:
+	ControlTable *controlTable;
 
 	float voltageErrorHigh;
 	float voltageErrorLow;

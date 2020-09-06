@@ -8,35 +8,84 @@ void Protection::Init()
 
 void Protection::Update()
 {
-	if (controlStatus != STATUS_NONE)
-		supplyVoltage = GetDCVoltageRaw() * DC_VOLTAGE_COEFF;
+	supplyVoltage = GetDCVoltageRaw() * DC_VOLTAGE_COEFF;
 
-	if (useBattery == 1)
+	if (controlTable->controlTableData[15].data >= 1)
 	{
-		if (supplyVoltage <= batteryCutoffVoltage)
+		if (supplyVoltage <= *(float*) &controlTable->controlTableData[16].data)
 		{
-			OffGateDriver();
-			controlStatus = STATUS_NONE;
-			SetOnBoardLED(0xFFF);
+			controlTable->controlTableData[31].data |= BATTERY_VOLTAGE_ERROR_MASK;
+			controlTable->SetTable(29, 0, 1);
+			//Battery Voltage Error
+		}
+		else
+		{
+			controlTable->controlTableData[31].data &= BATTERY_VOLTAGE_ERROR_MASK;
 		}
 	}
 	else
 	{
-		if (supplyVoltage <= voltageErrorLow || supplyVoltage >= voltageErrorHigh)
+		if (controlTable->controlTableData[5].data == 1)
 		{
-			OffGateDriver();
-			controlStatus = STATUS_NONE;
-			SetOnBoardLED(0xFFF);
+			if (supplyVoltage <= voltageErrorLow)
+			{
+				controlTable->controlTableData[31].data |= VOLTAGE_ERROR_MASK;
+				controlTable->SetTable(29, 0, 1);
+				//Voltage Error
+			}
+			else
+			{
+				controlTable->controlTableData[31].data &= VOLTAGE_ERROR_MASK;
+			}
+		}
+		else if (controlTable->controlTableData[5].data == 2)
+		{
+			if (supplyVoltage <= voltageErrorLow || supplyVoltage >= voltageErrorHigh)
+			{
+				controlTable->controlTableData[31].data |= VOLTAGE_ERROR_MASK;
+				controlTable->SetTable(29, 0, 1);
+				//Voltage Error
+			}
+			else
+			{
+				controlTable->controlTableData[31].data &= VOLTAGE_ERROR_MASK;
+			}
 		}
 	}
 
-	if(GateFault())
+	if (GateFault())
 	{
-		OffGateDriver();
-		controlStatus = STATUS_NONE;
-		SetOnBoardLED(0xFFF);
+		controlTable->controlTableData[31].data |= ELECTRICAL_SHOCK_ERROR_MASK;
+		controlTable->SetTable(29, 0, 1);
+		//Electrical Shock Error
+	}
+	else
+	{
+		controlTable->controlTableData[31].data &= ELECTRICAL_SHOCK_ERROR_MASK;
 	}
 
-	//TODO Add MOSFET and motor over temperature protection
-	//TODO Add gate fault Control
+	if (GetFETTempRaw() * ONBOARD_TEMP_COEFF >= *(float*) &controlTable->controlTableData[10].data)
+	{
+		controlTable->controlTableData[31].data |= BOARD_TEMPERATURE_ERROR_MASK;
+		//Board Temperature Error
+	}
+	else
+	{
+		controlTable->controlTableData[31].data &= BOARD_TEMPERATURE_ERROR_MASK;
+	}
+
+	if (GetMotorTempRaw() >= controlTable->controlTableData[11].data)
+	{
+		controlTable->controlTableData[31].data |= MOTOR_TEMPERATURE_ERROR_MASK;
+		//Motor Temperature Error
+	}
+	else
+	{
+		controlTable->controlTableData[31].data &= MOTOR_TEMPERATURE_ERROR_MASK;
+	}
+}
+
+void Protection::SetControlTable(ControlTable *_controlTable)
+{
+	controlTable = _controlTable;
 }

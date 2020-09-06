@@ -3,6 +3,7 @@
 
 #include <BoardConfig/board_config.h>
 #include <cstdint>
+#include <Lowlevel/lowlevel.hpp>
 
 enum Access
 {
@@ -36,10 +37,11 @@ struct ControlTableData
 class ControlTable
 {
 public:
-	ControlTableData controlTableData[49];
+	ControlTableData controlTableData[52];
 
 	void Init();
-	void LoadTableFromEEPROM();
+	void LoadControlTableFromEEPROM();
+	void FactoryReset();
 	uint8_t SetTable(uint16_t address, uint32_t data, uint8_t len);
 	uint8_t GetTable(uint16_t address, uint32_t *data, uint8_t len);
 

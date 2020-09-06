@@ -8,19 +8,21 @@
 #include <Encoder/AS5047.hpp>
 #include <FastMath/fast_math.hpp>
 #include <Util/util.hpp>
+#include <Protocol/controlTable.hpp>
 
 class Calibration {
 public:
 	void Init();
+	void SetControlTable(ControlTable *_controlTable);
 	void CalibrationUpdate();
 
-	float calibrationVoltage = 0.0f;
 	uint8_t done = 0;
 	float encoderOffset = 0.0f;
 	int32_t ADC1Offset = 0;
 	int32_t ADC2Offset = 0;
 
 private:
+	ControlTable *controlTable;
 	AS5047 Encoder = AS5047();
 
 	uint32_t startUpCounter = 0;
